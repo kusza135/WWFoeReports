@@ -232,7 +232,7 @@ def guild_player_history(filters):
 def run_reports():
     # st.empty
     colx, coly = st.columns([5, 10])
-    image = Image.open('.streamlit//logo.png')
+    image = Image.open('./.streamlit//logo.png')
     colx.image(image, width=150)
     coly.title('Wzgórze Wisielców  \n\n', anchor='main')
     

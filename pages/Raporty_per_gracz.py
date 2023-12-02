@@ -4,7 +4,10 @@ from tools.streamlit_tools import execute_query
 # import pandas as pd
 import  altair as alt
 from tools.login import login
+import os
 
+
+path = os.path.dirname(__file__)
 
 def filter_Setup() -> list:
 
@@ -232,7 +235,7 @@ def guild_player_history(filters):
 def run_reports():
     # st.empty
     colx, coly = st.columns([5, 10])
-    image = Image.open('./.streamlit/logo.png')
+    image = Image.open(path + '/.streamlit/logo.png')
     colx.image(image, width=150)
     coly.title('Wzgórze Wisielców  \n\n', anchor='main')
     

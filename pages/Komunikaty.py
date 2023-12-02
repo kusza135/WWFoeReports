@@ -3,6 +3,10 @@ from streamlit_extras.stylable_container import stylable_container
 from PIL import Image
 from tools.streamlit_tools import execute_query
 from tools.login import login
+import os
+
+
+path = os.path.dirname(__file__)
    
 def cheat_sheet():
     tab1, tab2 = st.tabs(["Wyśwletl", "Zmień"])
@@ -97,7 +101,7 @@ def new_message():
 def run_reports():
     # st.empty
     colx, coly = st.columns([5, 10])
-    image = Image.open('./.streamlit//logo.png')
+    image = Image.open(path + '/.streamlit/logo.png')
     colx.image(image, width=150)
     coly.title('Wzgórze Wisielców  \n\n', anchor='main')
     

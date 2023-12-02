@@ -4,12 +4,12 @@ import altair as alt
 from PIL import Image
 from tools.streamlit_tools import execute_query
 from tools.login import login
+import os
 
 
+path = os.path.dirname(__file__)
 
  
- 
-
 
 def get_text(type):
     res = execute_query(f"SELECT msg_text FROM t_tips WHERE msg_type = '{type}' AND valid_to ='3000-12-31'", return_type="df")
@@ -23,7 +23,7 @@ def run_reports():
    
     # st.empty
     colx, coly, colz = st.columns([5, 10, 3])
-    image = Image.open('.streamlit/logo.png')
+    image = Image.open(path + '/.streamlit/logo.png')
     colx.image(image, width=150)
     coly.title('Wzgórze Wisielców  \n\n', anchor='main')
     with colz as x:

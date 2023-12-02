@@ -88,6 +88,7 @@ def login():
         display_logged_user(name)
         change_pwd(authenticator)
         authenticator.logout('Logout', 'sidebar')
+        st.cache_data.clear()
         
         # Admin part
         if st.session_state['role'] == 'Admin':

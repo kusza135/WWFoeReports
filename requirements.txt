@@ -1,0 +1,5 @@
+streamlit
+altair
+PIL
+streamlit_authenticator
+streamlit_extras

@@ -298,6 +298,7 @@ if __name__ == '__main__':
     if 'authenticator_status' not in st.session_state:
         st.session_state.authenticator_status = None
     login()
+    # st.write(st.session_state['authenticator_status'])
     if st.session_state['authenticator_status']:
         run_reports()
 

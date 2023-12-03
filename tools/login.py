@@ -58,6 +58,7 @@ def change_pwd(authenticator):
             db_change_pwd(st.session_state["username"], new_password)
             st.success("Hasło zmienione", icon="✅")
 
+
 def login():
     all_users_db = get_users_credentials_from_db()
     users = [user[0] for user in all_users_db]
@@ -87,10 +88,8 @@ def login():
             st.session_state['role'] = get_user_role_from_db(username)
         display_logged_user(name)
         change_pwd(authenticator)
-        authenticator.logout('Logout', 'sidebar')
-        st.cache_data.clear()
-        
-        # Admin part
+    
+    # Admin part
         if st.session_state['role'] == 'Admin':
             with st.container() as c:
                 col1, col2, col3 = st.columns([10, 10, 10])
@@ -101,6 +100,8 @@ def login():
                         for names in authenticator.credentials['usernames']:
                             new_user(names, authenticator.credentials['usernames'][names]['name'], authenticator.credentials['usernames'][names]['password'])
                         st.success('User registered successfully')
+                        st.cache_data.clear()
+                        st.rerun()
         
                 with col2.expander(label="Reset User Password") as rup:
                     
@@ -111,6 +112,13 @@ def login():
                                 if new_password == rep_new_password:
                                     hashed_password  = stauth.Hasher([new_password]).generate()
                                     db_change_pwd(wybor_uzytkownika, hashed_password)
+                                    st.cache_data.clear()
+                                    st.rerun()
                                 else:
                                     raise 'Passwords do not match'
+        if authenticator.logout('Logout', 'sidebar'):
+            st.cache_data.clear()
+            st.cache_resource.clear()
+            st.rerun
+
 

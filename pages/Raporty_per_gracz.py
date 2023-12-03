@@ -189,7 +189,6 @@ def guild_player_history(filters):
                     end "Uprawnienia"
                 , Join_date
                 , leave_date
-                , notka
             from V_GUILD_PLAYERS a
             ORDER BY
                 Join_date
@@ -225,11 +224,27 @@ def guild_player_history(filters):
                     st.cache_data.clear()
                     guild_hist_sql = execute_query(query, return_type="df")
 
-            
-        
-                
+           
         st.dataframe(guild_hist_sql[guild_hist_sql['player_id'].isin(filters)], use_container_width=True, hide_index=True)
-        
+     
+def list_notes_for_users(filters):
+        query = f'''select 
+                MAX(a.player_id) as player_id
+                , a.name as "Player_name"
+                , notka
+            from V_GUILD_PLAYERS a
+            WHERE 
+                notka is not null
+            GROUP BY a.name, notka
+            '''
+        guild_hist_sql_tmp = execute_query(query, return_type="df")
+        guild_hist_sql = guild_hist_sql_tmp[guild_hist_sql_tmp['player_id'].isin(filters)]
+        for names in range(len(guild_hist_sql)):
+            player_name = guild_hist_sql['Player_name'][names]
+            notka = guild_hist_sql['notka'][names]
+            
+            st.warning(f'Gracz **{player_name}** ma zapisaną notatkę: {notka}', icon='⚠️')
+         
 
    
 def run_reports():
@@ -242,6 +257,8 @@ def run_reports():
     st.subheader(" ##  Postępy Graczy  ## ", anchor='PostępyGraczy')
     
     filters = filter_Setup()
+    
+    list_notes_for_users(filters)
     
     st.subheader('Wyprawy Gildyjne  \n  \n',anchor='wg',  divider='rainbow')
     st.text("\n\n\n")

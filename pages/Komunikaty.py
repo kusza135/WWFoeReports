@@ -5,87 +5,123 @@ from tools.streamlit_tools import execute_query
 from tools.login import login
 import os
 
+dump_value = "-1z"
+st.session_state['textmsg']= dump_value
 
 path = os.path.dirname(__file__)
+
+def assign_session_p():
+    st.markdown(f"*{st.session_state['textmsg']}*")
+    st.write(st.session_state['2_key'])
+    change_text(st.session_state['textmsg'], st.session_state['2_key'])
+
+    
    
 def cheat_sheet():
-    tab1, tab2 = st.tabs(["Wyśwletl", "Zmień"])
+
+        
+    
     
     res = execute_query(f"SELECT msg_type FROM t_tips WHERE valid_to ='3000-12-31'", return_type="df")
     
     
+    editable = st.toggle('Edytuj')
     
-    with tab1:
-        col1, col2, col3 = st.columns([5, 5, 5])
-        for i in res.index:
-            if i//3==0:
-                with col1.container():
-                    container_tab1(res.iloc[i]['msg_type'])
-            if i//3==1:
-                with col2.container():
-                    container_tab1(res.iloc[i]['msg_type'])
-            if i//3==2:
-                with col3.container():
-                    container_tab1(res.iloc[i]['msg_type'])
-
-    with tab2:
-        col11, col22, col33 = st.columns([5, 5, 5])
-        for i in res.index:
-            if i//3==0:
-                with col11.container() as x:
-                    container_tab2(res.iloc[i]['msg_type'])
-            if i//3==1:
-                with col22.container() as x:
-                    container_tab2(res.iloc[i]['msg_type'])
-            if i//3==2:
-                with col33.container() as x:
-                    container_tab2(res.iloc[i]['msg_type'])
-        
-        st.divider()
-        
-        col4, col44, col444 = st.columns([5, 5, 5])
-        with col4.container() as x:
-            new_message()
-
-def container_tab1(p_name):
-    with st.expander(p_name):
-        if f'{p_name}1_key' not in st.session_state:
-            st.session_state[f'{p_name}1_key'] = get_text(p_name)
-        with stylable_container(
-            "codeblock",
+    st.markdown(
             """
-            code {
-                white-space: pre-wrap !important;
-            }
-            """,
-        ):
-            st.code(st.session_state[f'{p_name}1_key'], language="markdown")
-        
-def container_tab2(p_name):
-    def assign_session_p():
-        st.write(st.session_state[f'{p_name}2_key'])
-        st.warning('Dane nie zostały jeszcze zapisane \n Wróć i kliknij "Zapisz".', icon="⚠️")
-        # change_text(p_type, st.session_state.ur_key)
-        
-    with st.expander(p_name):
-        if f'{p_name}2_key' not in st.session_state:
+        <style>
+        button {
+            height: auto;
+            padding-top: 10px !important;
+            padding-bottom: 10px !important;
+        }
+        </style>
+        """,
+            unsafe_allow_html=True,
+        )  
+    if not editable:
+
+            col1, col2, col3 = st.columns([ 5, 5, 5 ])
+            for i in res.index:
+                
+                if i//4==0:
+                    with col1.container():
+                        if st.button(res.iloc[i]['msg_type'], key=f'P1_{i}', help=None, on_click=None, type="secondary", disabled=False, use_container_width=True):
+                            st.session_state['textmsg'] = res.iloc[i]['msg_type']
+                if i//4==1:
+                    with col2.container():
+                        if st.button(res.iloc[i]['msg_type'], key=f'P1_{i}', help=None, on_click=None, type="secondary", disabled=False, use_container_width=True):
+                            st.session_state['textmsg'] = res.iloc[i]['msg_type']
+                if i//4==2:
+                    with col3.container():
+                        if st.button(res.iloc[i]['msg_type'], key=f'P1_{i}', help=None, on_click=None, type="secondary", disabled=False, use_container_width=True):
+                            st.session_state['textmsg'] = res.iloc[i]['msg_type']
+
+
             
-            st.session_state[f'{p_name}2_key'] = get_text(p_name)
-            st.text_area(label="Wprowadź nowy tekst:", value=get_text(p_name), key=f'{p_name}2_key', placeholder="Wpisz nowy text", on_change=assign_session_p)
-        if get_text(p_name) != st.session_state[f'{p_name}2_key']:
-            st.button(label=f"Zapisz_{p_name}", on_click=change_text, args=(p_name, st.session_state[f'{p_name}2_key']), disabled=False)
-        else:
-            st.button(label=f"Zapisz_{p_name}", on_click=change_text, args=(p_name, st.session_state[f'{p_name}2_key']), disabled=True)
- 
+            st.divider()
+            if get_text(st.session_state['textmsg']):
+                with stylable_container(
+                    "codeblock",
+                    """
+                    code {
+                        white-space: pre-wrap !important;
+                    }
+                    """,
+                ):
+                    st.code(get_text(st.session_state['textmsg']), language="markdown") 
+                    
+            st.divider()
+    else:            
+        # with tab2:
+            col11, col22, col33  = st.columns([5, 5, 5])
+            for i in res.index:
+                if i//4==0:
+                    with col11.container() as x:
+                        if st.button(res.iloc[i]['msg_type'], key=f'P2_{i}', help=None, on_click=None, type="secondary", disabled=False, use_container_width=True):
+                            st.session_state['textmsg'] = res.iloc[i]['msg_type']
+                if i//4==1:
+                    with col22.container() as x:
+                        if st.button(res.iloc[i]['msg_type'], key=f'P2_{i}', help=None, on_click=None, type="secondary", disabled=False, use_container_width=True):
+                            st.session_state['textmsg'] = res.iloc[i]['msg_type']
+                if i//4==2:
+                    with col33.container() as x:
+                        if st.button(res.iloc[i]['msg_type'], key=f'P2_{i}', help=None, on_click=None, type="secondary", disabled=False, use_container_width=True):
+                            st.session_state['textmsg'] = res.iloc[i]['msg_type']
+
+            
+            if st.session_state['textmsg'] != dump_value:
+                with st.container(border=True):
+                    p_name = st.session_state['textmsg']
+                    st.session_state['2_key'] = get_text(p_name)
+                    st.text_area(label="Wprowadź nowy tekst:", value=get_text(p_name), key= '2_key',  height=350, placeholder="Wpisz nowy text", on_change=assign_session_p)
+                    
+                    st.markdown(''':red[Wciśnij Ctrl+Enter aby zatwierdzić zmiany]''')
+
+            
+            st.divider()
+            
+            col5, col55, col555 = st.columns([5, 5, 5])
+            with col5.container() as x:
+                new_message()
+
+
 
 def get_text(type):
-    res = execute_query(f"SELECT msg_text FROM t_tips WHERE msg_type = '{type}' AND valid_to ='3000-12-31'", return_type="df")
-    return res.iloc[0]['msg_text']
+    if type == dump_value:
+        results = ""
+    else:
+        res = execute_query(f"SELECT msg_text FROM t_tips WHERE msg_type = '{type}' AND valid_to ='3000-12-31'", return_type="df")
+        results = res.iloc[0]['msg_text']
+    return results
     
 def change_text(type, msg):
-    execute_query(f"call p_change_tips('{type}','{msg}')", return_type="df")
-    st.cache_data.clear()
-    st.cache_resource.clear()
+    if type != dump_value:
+        sql = f"call p_change_tips('{type}','{msg}')"
+        # st.write(sql)
+        execute_query(sql, return_type="df")
+        st.cache_data.clear()
+        st.cache_resource.clear()
     
 def new_message():
     v_type = st.text_input(label="Krótki opis komunikatu")

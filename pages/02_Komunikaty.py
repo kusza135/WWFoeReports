@@ -15,15 +15,11 @@ def assign_session_p():
     st.write(st.session_state['2_key'])
     change_text(st.session_state['textmsg'], st.session_state['2_key'])
 
-    
+  
    
 def cheat_sheet():
-
-        
-    
     
     res = execute_query(f"SELECT msg_type FROM t_tips WHERE valid_to ='3000-12-31'", return_type="df")
-    
     
     editable = st.toggle('Edytuj')
     

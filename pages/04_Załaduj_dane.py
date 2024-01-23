@@ -1,6 +1,6 @@
 import streamlit as st
 from PIL import Image
-from tools.streamlit_tools import execute_query, create_engine
+from tools.streamlit_tools import execute_query, create_engine, runsql
 from tools.login import login, get_user_role_from_db
 import os
 # import streamlit_authenticator as stauth
@@ -53,7 +53,7 @@ def load_file(File_type, visibility = True):
 
 def load_data_intoDB(db_conn, dfName, DfData, vdate=date.today()):
  
-    # conn = db_conn.raw_connection()
+    conn = db_conn.raw_connection()
     match dfName:
         case 'guildPlayers':
             
@@ -68,10 +68,12 @@ def load_data_intoDB(db_conn, dfName, DfData, vdate=date.today()):
                                         , 'permissions']]
             
             # print(input_data.head(10))
-            execute_query(f'DROP TABLE IF EXISTS __{dfName}', return_type=None)
+            runsql(db_conn, f'DROP TABLE IF EXISTS __{dfName}')
             input_data.to_sql(name=f'__{dfName}',con=db_conn,if_exists='replace')
             
-            execute_query(f"CALL p_{dfName}('__{dfName}')", return_type="df")
+            cur = conn.cursor()
+            cur.callproc(f"p_{dfName}", args=[f"__{dfName}"])
+            cur.close() 
             
             
         case 'ages':
@@ -81,10 +83,12 @@ def load_data_intoDB(db_conn, dfName, DfData, vdate=date.today()):
                                         , 'era'
                                        ]]
             
-            execute_query(f'DROP TABLE IF EXISTS __{dfName}', return_type=None)
+            runsql(db_conn, f'DROP TABLE IF EXISTS __{dfName}')
             input_data.to_sql(name=f'__{dfName}',con=db_conn,if_exists='append')
 
-            execute_query(f"CALL p_{dfName}('__{dfName}')", return_type="df")
+            cur = conn.cursor()
+            cur.callproc(f"p_{dfName}", args=[f"__{dfName}"])
+            cur.close() 
            
             
         case 'wg':
@@ -94,10 +98,12 @@ def load_data_intoDB(db_conn, dfName, DfData, vdate=date.today()):
                                         , 'contributionDifficulty'
                                        ]]
             
-            execute_query(f'DROP TABLE IF EXISTS __{dfName}', return_type=None)
+            runsql(db_conn, f'DROP TABLE IF EXISTS __{dfName}')
             input_data.to_sql(name=f'__{dfName}',con=db_conn,if_exists='append')
             
-            execute_query(f"CALL p_{dfName}('__{dfName}',{wg_day(vdate)})", return_type=None)
+            cur = conn.cursor()
+            cur.callproc(f"p_{dfName}", args=[f"__{dfName}",wg_day(vdate)])
+            cur.close() 
          
             
         case 'gpch':
@@ -108,10 +114,13 @@ def load_data_intoDB(db_conn, dfName, DfData, vdate=date.today()):
                                         , 'ttrition'
                                        ]]
             
-            execute_query(f'DROP TABLE IF EXISTS __{dfName}', return_type=None)
+            runsql(db_conn, f'DROP TABLE IF EXISTS __{dfName}')
             input_data.to_sql(name=f'__{dfName}',con=db_conn,if_exists='append')
             
-            execute_query(f"CALL p_{dfName}('__{dfName}',{gpch_day(vdate)})", return_type="df")
+            cur = conn.cursor()
+            cur.callproc(f"p_{dfName}", args=[f"__{dfName}",gpch_day(vdate)])
+            cur.close() 
+
 
 def wg_day(date):
     return date.weekday()
@@ -137,30 +146,46 @@ def run_last_update_date(db_conn):
 def run_loads(guildPlayers_data, wg_data, gpch_data):
     with st.status("inicjuję połączenie.", expanded=True) as status:
         con = create_engine()
+        statistics = pd.DataFrame(columns=['Source', 'Loaded records'])
         if not guildPlayers_data.empty:
             st.write(f"Ładowanie {guildPlayers}...")
             load_data_intoDB(con,'guildPlayers', guildPlayers_data)
             status.update(label=f"Zakończono {guildPlayers}!", state='running', expanded=True)
+            statistics.loc[len(statistics)] = [ f"{guildPlayers}", len(guildPlayers_data)]
         if not wg_data.empty:
             st.write(f"Ładowanie {wg}...")
             load_data_intoDB(con,'wg', wg_data)
             status.update(label=f"Zakończono {wg}!", state='running', expanded=True)
+            statistics.loc[len(statistics)] = [ f"{wg}", len(wg_data)]
         if not gpch_data.empty:
             st.write(f"Ładowanie {gpch}...")
             load_data_intoDB(con,'gpch', gpch_data)
             status.update(label=f"Zakończono {gpch}!", state='running', expanded=True)
+            statistics.loc[len(statistics)] = [ f"{gpch}", len(gpch_data)]
+            
+            
         run_last_update_date(con)
         status.update(label="Zakończono ładowanie danych!", state='complete', expanded=True)
-        time.sleep(3)
+        st.dataframe(statistics)
+        time.sleep(10)
         st.session_state.pop(guildPlayers)
         st.session_state.pop(wg)
         st.session_state.pop(gpch)
 
 
 
-
 def main():    
-    # st.empty
+    st.set_page_config(
+        page_title="WW Stats - Załaduj dane",
+        page_icon=".streamlit//logo.png",
+        layout="wide",
+        initial_sidebar_state="expanded",
+        menu_items={
+            'Get Help': 'http://www.google_com/',
+            'Report a Bug' : 'mailto:adamus01@gmail.com', 
+            'About': "# This apps may help to monitor guild health."
+        }
+    )  
     colx, coly = st.columns([5, 10])
     image = Image.open(path + '/../.streamlit/Logo.png')
     colx.image(image, width=150)
@@ -173,24 +198,30 @@ def main():
             # guildPlayers_data =pd.DataFrame()
             # st.write(guildPlayers_data.count())
             xcol, xlcol, xxlcol = st.columns(3)
+            with xcol.container(border=True):
+                load_type = st.checkbox(label="Wymagaj ładowania wszystkich ekstraktów", value=True)
+                wg_gpch_daily_run = st.checkbox(label="Pozwalaj na ładowanie danych w trakcie WG / GPCh", value=True)
             with xlcol.container(border=True):
                 vdate = date_pick(sdate)
             col1, col2, col3 = st.columns(3, gap="small")
             with col1.container() as c:
                 guildPlayers_data = load_file(guildPlayers)
             with col2.container() as c:
-                wg_data = load_file(wg)
-            with col3.container() as c:
-                if gpch_day(vdate) == 0: 
-                    gpch_data = load_file(gpch, True)
+                if wg_gpch_daily_run == False and wg_day(vdate) !=0:
+                    wg_data = load_file(wg, False)
                 else:
+                    wg_data = load_file(wg, True)
+            with col3.container() as c:
+                if wg_gpch_daily_run == False and gpch_day(vdate) !=0:
                     gpch_data = load_file(gpch, False)
-            
-                # st.write("tutaj będzie funcjonalność ładowania plików")                
+                else:  
+                    gpch_data = load_file(gpch, True)
+
 
             
-            if guildPlayers_data is not None or ( gpch_data is not None and gpch_day(vdate) == True ) or wg_data is not None:
-                if not guildPlayers_data.empty or wg_data.empty or gpch_data.empty:
+            if  ( load_type == True and (guildPlayers_data is not None and gpch_data is not None and wg_data is not None )) \
+                 or ( load_type == False and (guildPlayers_data is not None or gpch_data is not None or wg_data is not None)):
+                if guildPlayers_data is None or gpch_data is None or wg_data is None:
                     if guildPlayers_data is None or guildPlayers_data.empty: 
                         guildPlayers_data = pd.DataFrame()
                     if gpch_data is None or gpch_data.empty: 
@@ -198,12 +229,7 @@ def main():
                     if wg_data is None or wg_data.empty: 
                         wg_data = pd.DataFrame()
                     st.button(label="Załaduj pliki", type='primary', on_click=run_loads, args=(guildPlayers_data, wg_data, gpch_data)) 
-                    # \
-                    #         and guildPlayers in st.session_state.keys():
                         
-
-                        
-            
         else:
             st.markdown('<div style="text-align: center;">Nie masz odpwowiedniej roli by wyświetlić tą zawartość.</div>', unsafe_allow_html=True)
             

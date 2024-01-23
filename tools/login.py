@@ -26,12 +26,11 @@ def get_user_role_from_db(name):
 
 def display_logged_user(name):
     # col1, col2 = st.columns([10,25])
-    st.sidebar.markdown(f'<center><p style="background-color:#e9f7e1;color:#666963;font-size:14px;">Witaj <br>{name}</p>', unsafe_allow_html=True)
+    st.sidebar.markdown(f'<center><p style="background-color:#e9f7e1;color:#666963;font-size:14px;">Zalogowano jako <br>{name}</p>', unsafe_allow_html=True)
 
 
 def db_change_pwd(UserName, Password):
     query = f"call p_modify_user('{UserName}', '{Password}')"
-    # st.write(query)
     execute_query(query, return_type="df")
 
 
@@ -48,13 +47,13 @@ def reset_password(authenticator):
         return None, False
 
 
-def change_pwd(authenticator):
+# def change_pwd(authenticator):
     
-    with st.sidebar.expander(label="Zmień hasło", expanded=False) as f:
-        new_password, x = reset_password(authenticator)
-        if new_password != None and x == True:
-            db_change_pwd(st.session_state["username"], new_password)
-            st.success("Hasło zmienione", icon="✅")
+#     with st.sidebar.expander(label="Zmień hasło", expanded=False) as f:
+#         new_password, x = reset_password(authenticator)
+#         if new_password != None and x == True:
+#             db_change_pwd(st.session_state["username"], new_password)
+#             st.success("Hasło zmienione", icon="✅")
 
 
 def login():
@@ -85,7 +84,7 @@ def login():
         if 'role' not in st.session_state:
             st.session_state['role'] = get_user_role_from_db(username)
         display_logged_user(name)
-        change_pwd(authenticator)
+        # change_pwd(authenticator)
     
 
     if authenticator.logout('Logout', 'sidebar'):

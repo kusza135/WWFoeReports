@@ -285,7 +285,7 @@ def check_nick_name_change():
         
 if __name__ == '__main__':    
     st.set_page_config(
-        page_title="WW Stats",
+        page_title="WW Stats - Podsumowanie GPCh & WG",
         page_icon=".streamlit//logo.png",
         layout="wide",
         initial_sidebar_state="expanded",

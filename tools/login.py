@@ -2,8 +2,6 @@ import streamlit as st
 import streamlit_authenticator as stauth
 from  tools.streamlit_tools import execute_query
 
-def new_user(login, UserName, Password):
-    execute_query(f"call p_add_user('{login}','{UserName}', '{Password}')", return_type="df")
 
 def get_users_credentials_from_db():
     query = f'''SELECT 
@@ -28,12 +26,11 @@ def get_user_role_from_db(name):
 
 def display_logged_user(name):
     # col1, col2 = st.columns([10,25])
-    st.sidebar.markdown(f'<center><p style="background-color:#e9f7e1;color:#666963;font-size:14px;">Witaj <br>{name}</p>', unsafe_allow_html=True)
+    st.sidebar.markdown(f'<center><p style="background-color:#e9f7e1;color:#666963;font-size:14px;">Zalogowano jako <br>{name}</p>', unsafe_allow_html=True)
 
 
 def db_change_pwd(UserName, Password):
     query = f"call p_modify_user('{UserName}', '{Password}')"
-    # st.write(query)
     execute_query(query, return_type="df")
 
 
@@ -50,13 +47,13 @@ def reset_password(authenticator):
         return None, False
 
 
-def change_pwd(authenticator):
+# def change_pwd(authenticator):
     
-    with st.sidebar.expander(label="Zmień hasło", expanded=False) as f:
-        new_password, x = reset_password(authenticator)
-        if new_password != None and x == True:
-            db_change_pwd(st.session_state["username"], new_password)
-            st.success("Hasło zmienione", icon="✅")
+#     with st.sidebar.expander(label="Zmień hasło", expanded=False) as f:
+#         new_password, x = reset_password(authenticator)
+#         if new_password != None and x == True:
+#             db_change_pwd(st.session_state["username"], new_password)
+#             st.success("Hasło zmienione", icon="✅")
 
 
 def login():
@@ -87,38 +84,14 @@ def login():
         if 'role' not in st.session_state:
             st.session_state['role'] = get_user_role_from_db(username)
         display_logged_user(name)
-        change_pwd(authenticator)
+        # change_pwd(authenticator)
     
-    # Admin part
-        if st.session_state['role'] == 'Admin':
-            with st.container() as c:
-                col1, col2, col3 = st.columns([10, 10, 10])
-                with col1.expander(label="Create New User") as cnu:
-                    x = authenticator.register_user('Uzupełnij dane', preauthorization=False)
-                    if x == True :
-                        # userName = 
-                        for names in authenticator.credentials['usernames']:
-                            new_user(names, authenticator.credentials['usernames'][names]['name'], authenticator.credentials['usernames'][names]['password'])
-                        st.success('User registered successfully')
-                        st.cache_data.clear()
-                        st.rerun()
-        
-                with col2.expander(label="Reset User Password") as rup:
-                    
-                    wybor_uzytkownika = st.selectbox(label="Wybierz użytkownika", options=users)
-                    new_password = st.text_input(label="Nowe hasło", type='password')
-                    rep_new_password = st.text_input(label="Powtórz nowe hasło", type='password')
-                    if len(new_password) > 0:
-                                if new_password == rep_new_password:
-                                    hashed_password  = stauth.Hasher([new_password]).generate()
-                                    db_change_pwd(wybor_uzytkownika, hashed_password)
-                                    st.cache_data.clear()
-                                    st.rerun()
-                                else:
-                                    raise 'Passwords do not match'
-        if authenticator.logout('Logout', 'sidebar'):
-            st.cache_data.clear()
-            st.cache_resource.clear()
-            st.rerun
+
+    if authenticator.logout('Logout', 'sidebar'):
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        st.rerun
+    return authenticator, users, username
+
 
 

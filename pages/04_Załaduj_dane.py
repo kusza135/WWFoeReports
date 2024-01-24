@@ -74,8 +74,7 @@ def load_file(Load_Method, File_type, visibility = True):
 def load_data_intoDB(db_conn, dfName, DfData, vdate=date.today()):
  
     conn = db_conn.raw_connection()
-    match dfName:
-        case 'guildPlayers':
+    if  dfName == 'guildPlayers':
             
             input_data = DfData.loc[:, ['player_id'
                                         , 'name'
@@ -96,7 +95,7 @@ def load_data_intoDB(db_conn, dfName, DfData, vdate=date.today()):
             cur.close() 
             
             
-        case 'ages':
+    elif  dfName == 'ages':
             
             input_data = DfData.loc[:, ['id'
                                         , 'Age_PL'
@@ -111,7 +110,7 @@ def load_data_intoDB(db_conn, dfName, DfData, vdate=date.today()):
             cur.close() 
            
             
-        case 'wg':
+    elif  dfName == 'wg':
             input_data = DfData.loc[:, ['_id'
                                         , 'xpeditionPoints'
                                         , 'solvedEncounters'
@@ -126,7 +125,7 @@ def load_data_intoDB(db_conn, dfName, DfData, vdate=date.today()):
             cur.close() 
          
             
-        case 'gpch':
+    elif  dfName == 'gpch':
             input_data = DfData.loc[:, ['_id'
                                         , 'nk'
                                         , 'battlesWon'

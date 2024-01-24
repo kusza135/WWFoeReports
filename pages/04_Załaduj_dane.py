@@ -18,9 +18,14 @@ guildPlayers = "Gracze Gildii Wzgórze Wisielców"
 wg = "Wyprawy Gildyjne"
 gpch = "Gildyjne Pola Chwały"
 
-if guildPlayers not in st.session_state: st.session_state[guildPlayers] = str(randint(1000, 100000000))
-if wg not in st.session_state: st.session_state[wg] = str(randint(1000, 100000000))
-if gpch not in st.session_state: st.session_state[gpch] = str(randint(1000, 100000000))
+if f"File_{guildPlayers}" not in st.session_state: st.session_state[f"File_{guildPlayers}"] = str(randint(1000, 100000000))
+if f"File_{wg}" not in st.session_state: st.session_state[f"File_{wg}"] = str(randint(1000, 100000000))
+if f"File_{gpch}" not in st.session_state: st.session_state[f"File_{gpch}"] = str(randint(1000, 100000000))
+
+if f"Clipboard_{guildPlayers}" not in st.session_state: st.session_state[f"Clipboard_{guildPlayers}"] = str(randint(1000, 100000000))
+if f"Clipboard_{wg}" not in st.session_state: st.session_state[f"Clipboard_{wg}"] = str(randint(1000, 100000000))
+if f"Clipboard_{gpch}" not in st.session_state: st.session_state[f"Clipboard_{gpch}"] = str(randint(1000, 100000000))
+
 
 def date_pick(sdate):
     przycisk1 = st.toggle('zmień datę ładowania danych')
@@ -30,23 +35,38 @@ def date_pick(sdate):
         return vdate
     return vdate
 
-def load_file(File_type, visibility = True):
-    uploaded_file = st.file_uploader(f"Wybierz lub przeciągnij plik {File_type}", key= st.session_state[File_type], disabled=not visibility)
+def load_file(Load_Method, File_type, visibility = True):
+    if Load_Method == "File":
+        st.markdown(body=f"Wybierz lub przeciągnij plik :blue[{File_type}]")
+        uploaded_file = st.file_uploader(f"Wybierz lub przeciągnij plik {File_type}", key= st.session_state[f"{Load_Method}_{File_type}"], disabled=not visibility, label_visibility="hidden")
+    elif Load_Method == "Clipboard":
+        st.markdown(body=f"Wklej dane :blue[{File_type}]")
+        if visibility == True:
+            plholder = "Dane powinny być w formacie JSON"
+        else:
+            plholder = f"{File_type} w trakcie sezonu! \nOkno nie aktywne."
+        uploaded_file = st.text_area(label=f"Wklej dane {File_type}", height=200, placeholder= plholder, key= st.session_state[f"{Load_Method}_{File_type}"], disabled=not visibility, label_visibility="hidden")
     if uploaded_file is not None:
         # To read file as string:
-        string_data = json.loads(uploaded_file.getvalue().decode("utf-8"))
-
-        st.write(File_type)
-        if File_type == guildPlayers:
-            data = pd.DataFrame(string_data)
-            
-        elif File_type == wg:
-            data = pd.json_normalize(string_data)
-            data.columns = data.columns.str.lstrip('player.')
-        elif File_type == gpch:
-            data = pd.json_normalize(string_data)
-            data.columns = data.columns.str.lstrip('player\.')
-        return data
+        try:
+            if Load_Method == "File":
+                string_data = json.loads(uploaded_file.getvalue().decode("utf-8"))
+            elif Load_Method == "Clipboard":
+                string_data = json.loads(uploaded_file)
+            st.markdown(f"{File_type}  - Dane są poprawne :white_check_mark:")
+            if File_type == guildPlayers:
+                data = pd.DataFrame(string_data)
+                
+            elif File_type == wg:
+                data = pd.json_normalize(string_data)
+                data.columns = data.columns.str.lstrip('player.')
+            elif File_type == gpch:
+                data = pd.json_normalize(string_data)
+                data.columns = data.columns.str.lstrip('player\.')
+            return data
+        except:
+            if not uploaded_file == "":
+                st.markdown(f"{File_type}  - Dane są błędne :thumbsdown:")
     else:
         return None
 
@@ -121,7 +141,6 @@ def load_data_intoDB(db_conn, dfName, DfData, vdate=date.today()):
             cur.callproc(f"p_{dfName}", args=[f"__{dfName}",gpch_day(vdate)])
             cur.close() 
 
-
 def wg_day(date):
     return date.weekday()
 
@@ -143,7 +162,7 @@ def run_last_update_date(db_conn):
     cur.callproc(f"p_log")
     cur.close()  
 
-def run_loads(guildPlayers_data, wg_data, gpch_data):
+def run_loads(Load_Method, guildPlayers_data, wg_data, gpch_data):
     with st.status("inicjuję połączenie.", expanded=True) as status:
         con = create_engine()
         statistics = pd.DataFrame(columns=['Source', 'Loaded records'])
@@ -168,10 +187,9 @@ def run_loads(guildPlayers_data, wg_data, gpch_data):
         status.update(label="Zakończono ładowanie danych!", state='complete', expanded=True)
         st.dataframe(statistics)
         time.sleep(10)
-        st.session_state.pop(guildPlayers)
-        st.session_state.pop(wg)
-        st.session_state.pop(gpch)
-
+        st.session_state.pop(f"{Load_Method}_{guildPlayers}")
+        st.session_state.pop(f"{Load_Method}_{wg}")
+        st.session_state.pop(f"{Load_Method}_{gpch}")
 
 
 def main():    
@@ -195,40 +213,80 @@ def main():
     if username:
         role = get_user_role_from_db(username)
         if role == 'Admin':
-            # guildPlayers_data =pd.DataFrame()
-            # st.write(guildPlayers_data.count())
+
             xcol, xlcol, xxlcol = st.columns(3)
             with xcol.container(border=True):
                 load_type = st.checkbox(label="Wymagaj ładowania wszystkich ekstraktów", value=True)
                 wg_gpch_daily_run = st.checkbox(label="Pozwalaj na ładowanie danych w trakcie WG / GPCh", value=True)
             with xlcol.container(border=True):
                 vdate = date_pick(sdate)
-            col1, col2, col3 = st.columns(3, gap="small")
-            with col1.container() as c:
-                guildPlayers_data = load_file(guildPlayers)
-            with col2.container() as c:
-                if wg_gpch_daily_run == False and wg_day(vdate) !=0:
-                    wg_data = load_file(wg, False)
-                else:
-                    wg_data = load_file(wg, True)
-            with col3.container() as c:
-                if wg_gpch_daily_run == False and gpch_day(vdate) !=0:
-                    gpch_data = load_file(gpch, False)
-                else:  
-                    gpch_data = load_file(gpch, True)
-
-
             
-            if  ( load_type == True and (guildPlayers_data is not None and gpch_data is not None and wg_data is not None )) \
-                 or ( load_type == False and (guildPlayers_data is not None or gpch_data is not None or wg_data is not None)):
-                if guildPlayers_data is None or gpch_data is None or wg_data is None:
-                    if guildPlayers_data is None or guildPlayers_data.empty: 
-                        guildPlayers_data = pd.DataFrame()
-                    if gpch_data is None or gpch_data.empty: 
-                        gpch_data = pd.DataFrame()
-                    if wg_data is None or wg_data.empty: 
-                        wg_data = pd.DataFrame()
-                    st.button(label="Załaduj pliki", type='primary', on_click=run_loads, args=(guildPlayers_data, wg_data, gpch_data)) 
+            tab1, tab2 = st.tabs(["Załaduj ze schowka", "Załaduj z pliku"])
+
+            with tab1:
+                Load_Method= "Clipboard"
+                col1, col2, col3 = st.columns(3, gap="small")
+                with col1.container() as c:
+                    guildPlayers_data_cl = load_file(Load_Method, guildPlayers)
+                with col2.container() as c:
+                    if wg_gpch_daily_run == False and wg_day(vdate) !=0:
+                        wg_data_cl = load_file(Load_Method, wg, False)
+                    else:
+                         wg_data_cl = load_file(Load_Method, wg, True)
+                with col3.container() as c:
+                    if wg_gpch_daily_run == False and gpch_day(vdate) !=0:
+                        gpch_data_cl = load_file(Load_Method, gpch, False)
+                    else:  
+                        gpch_data_cl = load_file(Load_Method, gpch, True)
+
+                if  ( (load_type == True and ((wg_gpch_daily_run == True and guildPlayers_data_cl is not None and gpch_data_cl is not None and wg_data_cl is not None ) \
+                       or (wg_gpch_daily_run == False  and (guildPlayers_data_cl is not None or gpch_data_cl is not None or wg_data_cl is not None ))))) \
+                    or ( load_type == False and (guildPlayers_data_cl is not None or gpch_data_cl is not None or wg_data_cl is not None)):
+                    if (guildPlayers_data_cl is None or gpch_data_cl is None or wg_data_cl is None)\
+                        or (guildPlayers_data_cl.empty or gpch_data_cl.empty or wg_data_cl.empty):
+                        if guildPlayers_data_cl is None or guildPlayers_data_cl.empty: 
+                            guildPlayers_data_cl = pd.DataFrame()
+                        if gpch_data_cl is None or gpch_data_cl.empty: 
+                            gpch_data_cl = pd.DataFrame()
+                        if wg_data_cl is None or wg_data_cl.empty: 
+                            wg_data_cl = pd.DataFrame()
+
+
+                        st.button(label="Załaduj dane", type='primary', on_click=run_loads, args=(Load_Method, guildPlayers_data_cl, wg_data_cl, gpch_data_cl)) 
+                    else:
+                        st.button(label="Załaduj dane", type='primary', on_click=run_loads, args=(Load_Method, guildPlayers_data_cl, wg_data_cl, gpch_data_cl)) 
+                
+            with tab2:
+                Load_Method= "File"                
+                col1, col2, col3 = st.columns(3, gap="small")
+                with col1.container() as c:
+                    guildPlayers_data = load_file(Load_Method, guildPlayers)
+                with col2.container() as c:
+                    if wg_gpch_daily_run == False and wg_day(vdate) !=0:
+                        wg_data = load_file(Load_Method, wg, False)
+                    else:
+                        wg_data = load_file(Load_Method, wg, True)
+                with col3.container() as c:
+                    if wg_gpch_daily_run == False and gpch_day(vdate) !=0:
+                        gpch_data = load_file(Load_Method, gpch, False)
+                    else:  
+                        gpch_data = load_file(Load_Method, gpch, True)
+
+
+                
+                if  ( (load_type == True and ((wg_gpch_daily_run == True and guildPlayers_data is not None and gpch_data is not None and wg_data is not None ) \
+                       or (wg_gpch_daily_run == False  and (guildPlayers_data is not None or gpch_data is not None or wg_data is not None ))))) \
+                    or ( load_type == False and (guildPlayers_data is not None or gpch_data is not None or wg_data is not None)):
+                    if guildPlayers_data is None or gpch_data is None or wg_data is None:
+                        if guildPlayers_data is None or guildPlayers_data.empty: 
+                            guildPlayers_data = pd.DataFrame()
+                        if gpch_data is None or gpch_data.empty: 
+                            gpch_data = pd.DataFrame()
+                        if wg_data is None or wg_data.empty: 
+                            wg_data = pd.DataFrame()
+                        st.button(label="Załaduj pliki", type='primary', on_click=run_loads, args=(Load_Method, guildPlayers_data, wg_data, gpch_data)) 
+                    else:
+                        st.button(label="Załaduj pliki", type='primary', on_click=run_loads, args=(Load_Method, guildPlayers_data, wg_data, gpch_data)) 
                         
         else:
             st.markdown('<div style="text-align: center;">Nie masz odpwowiedniej roli by wyświetlić tą zawartość.</div>', unsafe_allow_html=True)

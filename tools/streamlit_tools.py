@@ -21,5 +21,5 @@ def runsql(dbconnector, query):
         with dbconnector.connect() as con:
             rs = con.execute(text(query) )
     except Exception as e:
-        print(query)
+        st.write(query)
         raise ValueError(e.with_traceback) 

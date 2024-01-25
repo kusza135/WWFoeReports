@@ -71,9 +71,11 @@ def load_file(Load_Method, File_type, visibility = True):
         return None
 
 
-def load_data_intoDB(db_conn, dfName, DfData, vdate=date.today()):
+
+
+def load_data_intoDB(db_conn, dfName, DfData, vdate = date.today()):
  
-    conn = db_conn.raw_connection()
+    
     if  dfName == 'guildPlayers':
             
             input_data = DfData.loc[:, ['player_id'
@@ -89,10 +91,13 @@ def load_data_intoDB(db_conn, dfName, DfData, vdate=date.today()):
             # print(input_data.head(10))
             runsql(db_conn, f'DROP TABLE IF EXISTS __{dfName}')
             input_data.to_sql(name=f'__{dfName}',con=db_conn,if_exists='replace')
-            
-            cur = conn.cursor()
-            cur.callproc(f"p_{dfName}", args=[f"__{dfName}"])
-            cur.close() 
+            try:
+                conn = db_conn.raw_connection()
+                cur = conn.cursor()
+                cur.callproc(f"p_{dfName}", args=[f"__{dfName}", {vdate}])
+                cur.close() 
+            finally:
+                conn.close()
             
             
     elif  dfName == 'ages':
@@ -104,11 +109,13 @@ def load_data_intoDB(db_conn, dfName, DfData, vdate=date.today()):
             
             runsql(db_conn, f'DROP TABLE IF EXISTS __{dfName}')
             input_data.to_sql(name=f'__{dfName}',con=db_conn,if_exists='append')
-
-            cur = conn.cursor()
-            cur.callproc(f"p_{dfName}", args=[f"__{dfName}"])
-            cur.close() 
-           
+            try:
+                conn = db_conn.raw_connection()
+                cur = conn.cursor()
+                cur.callproc(f"p_{dfName}", args=[f"__{dfName}"])
+                cur.close() 
+            finally:
+                conn.close()
             
     elif  dfName == 'wg':
             input_data = DfData.loc[:, ['_id'
@@ -120,10 +127,13 @@ def load_data_intoDB(db_conn, dfName, DfData, vdate=date.today()):
             runsql(db_conn, f'DROP TABLE IF EXISTS __{dfName}')
             input_data.to_sql(name=f'__{dfName}',con=db_conn,if_exists='append')
             
-            cur = conn.cursor()
-            cur.callproc(f"p_{dfName}", args=[f"__{dfName}",wg_day(vdate)])
-            cur.close() 
-         
+            try:
+                conn = db_conn.raw_connection()
+                cur = conn.cursor()
+                cur.callproc(f"p_{dfName}", args=[f"__{dfName}", {vdate}, wg_day(vdate)])
+                cur.close() 
+            finally:
+                conn.close()
             
     elif  dfName == 'gpch':
             input_data = DfData.loc[:, ['_id'
@@ -135,10 +145,13 @@ def load_data_intoDB(db_conn, dfName, DfData, vdate=date.today()):
             
             runsql(db_conn, f'DROP TABLE IF EXISTS __{dfName}')
             input_data.to_sql(name=f'__{dfName}',con=db_conn,if_exists='append')
-            
-            cur = conn.cursor()
-            cur.callproc(f"p_{dfName}", args=[f"__{dfName}",gpch_day(vdate)])
-            cur.close() 
+            try:
+                conn = db_conn.raw_connection()
+                cur = conn.cursor()
+                cur.callproc(f"p_{dfName}", args=[f"__{dfName}", {vdate}, gpch_day(vdate)])
+                cur.close() 
+            finally:
+                conn.close()
 
 def wg_day(date):
     return date.weekday()
@@ -161,23 +174,23 @@ def run_last_update_date(db_conn):
     cur.callproc(f"p_log")
     cur.close()  
 
-def run_loads(Load_Method, guildPlayers_data, wg_data, gpch_data):
+def run_loads(Load_Method, guildPlayers_data, wg_data, gpch_data, vdate):
     with st.status("inicjuję połączenie.", expanded=True) as status:
         con = create_engine()
         statistics = pd.DataFrame(columns=['Source', 'Loaded records'])
         if not guildPlayers_data.empty:
             st.write(f"Ładowanie {guildPlayers}...")
-            load_data_intoDB(con,'guildPlayers', guildPlayers_data)
+            load_data_intoDB(con,'guildPlayers', guildPlayers_data, vdate)
             status.update(label=f"Zakończono {guildPlayers}!", state='running', expanded=True)
             statistics.loc[len(statistics)] = [ f"{guildPlayers}", len(guildPlayers_data)]
         if not wg_data.empty:
             st.write(f"Ładowanie {wg}...")
-            load_data_intoDB(con,'wg', wg_data)
+            load_data_intoDB(con,'wg', wg_data, vdate)
             status.update(label=f"Zakończono {wg}!", state='running', expanded=True)
             statistics.loc[len(statistics)] = [ f"{wg}", len(wg_data)]
         if not gpch_data.empty:
             st.write(f"Ładowanie {gpch}...")
-            load_data_intoDB(con,'gpch', gpch_data)
+            load_data_intoDB(con,'gpch', gpch_data, vdate)
             status.update(label=f"Zakończono {gpch}!", state='running', expanded=True)
             statistics.loc[len(statistics)] = [ f"{gpch}", len(gpch_data)]
             
@@ -186,6 +199,7 @@ def run_loads(Load_Method, guildPlayers_data, wg_data, gpch_data):
         status.update(label="Zakończono ładowanie danych!", state='complete', expanded=True)
         st.dataframe(statistics)
         time.sleep(10)
+        status.update(label="Zakończono ładowanie danych!", state='complete', expanded=False)
         st.session_state.pop(f"{Load_Method}_{guildPlayers}")
         st.session_state.pop(f"{Load_Method}_{wg}")
         st.session_state.pop(f"{Load_Method}_{gpch}")
@@ -251,9 +265,9 @@ def main():
                             wg_data_cl = pd.DataFrame()
 
 
-                        st.button(label="Załaduj dane", type='primary', on_click=run_loads, args=(Load_Method, guildPlayers_data_cl, wg_data_cl, gpch_data_cl)) 
+                        st.button(label="Załaduj dane", type='primary', on_click=run_loads, args=(Load_Method, guildPlayers_data_cl, wg_data_cl, gpch_data_cl, vdate)) 
                     else:
-                        st.button(label="Załaduj dane", type='primary', on_click=run_loads, args=(Load_Method, guildPlayers_data_cl, wg_data_cl, gpch_data_cl)) 
+                        st.button(label="Załaduj dane", type='primary', on_click=run_loads, args=(Load_Method, guildPlayers_data_cl, wg_data_cl, gpch_data_cl, vdate)) 
                 
             with tab2:
                 Load_Method= "File"                
@@ -283,9 +297,9 @@ def main():
                             gpch_data = pd.DataFrame()
                         if wg_data is None or wg_data.empty: 
                             wg_data = pd.DataFrame()
-                        st.button(label="Załaduj pliki", type='primary', on_click=run_loads, args=(Load_Method, guildPlayers_data, wg_data, gpch_data)) 
+                        st.button(label="Załaduj pliki", type='primary', on_click=run_loads, args=(Load_Method, guildPlayers_data, wg_data, gpch_data, vdate)) 
                     else:
-                        st.button(label="Załaduj pliki", type='primary', on_click=run_loads, args=(Load_Method, guildPlayers_data, wg_data, gpch_data)) 
+                        st.button(label="Załaduj pliki", type='primary', on_click=run_loads, args=(Load_Method, guildPlayers_data, wg_data, gpch_data, vdate)) 
                         
         else:
             st.markdown('<div style="text-align: center;">Nie masz odpwowiedniej roli by wyświetlić tą zawartość.</div>', unsafe_allow_html=True)

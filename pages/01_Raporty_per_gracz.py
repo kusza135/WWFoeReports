@@ -151,27 +151,27 @@ from V_GPCH where GPCH_DATE_OF_DAY = 0
         )
         st.altair_chart(bars + text, theme=None, use_container_width=True)
         
-def guild_player_stats(filters):
-        guild_stats_sql = execute_query(
-        f'''select 
-                a.player_id
-                , Report_date
-                , a.`rank`
-                , a.name as "Player_name"
-                , a.score
-                , a.won_battles
-                , a.Age_PL as "Epoka"
-                , title
-                , Join_date
-                , leave_date
-from V_GUILD_PLAYERS a
-inner join V_WG b on a.player_id   = b.player_id 
-where wg_date_of_day = 0
-AND report_date between valid_from and valid_to
-            ''',
-                    return_type="df",
-                )
-        st.table(guild_stats_sql[guild_stats_sql['player_id'].isin(filters)])
+# def guild_player_stats(filters):
+#         guild_stats_sql = execute_query(
+#         f'''select 
+#                 a.player_id
+#                 , Report_date
+#                 , a.`rank`
+#                 , a.name as "Player_name"
+#                 , a.score
+#                 , a.won_battles
+#                 , a.Age_PL as "Epoka"
+#                 , title
+#                 , Join_date
+#                 , leave_date
+# from V_GUILD_PLAYERS a
+# inner join V_WG b on a.player_id   = b.player_id 
+# where wg_date_of_day = 0
+# AND report_date between valid_from and valid_to
+#             ''',
+#                     return_type="df",
+#                 )
+#         st.table(guild_stats_sql[guild_stats_sql['player_id'].isin(filters)])
         
 def guild_player_history(filters):
         query = f'''select 
@@ -189,9 +189,11 @@ def guild_player_history(filters):
                     end "Uprawnienia"
                 , Join_date
                 , leave_date
+                , valid_from
+                , valid_to
             from V_GUILD_PLAYERS a
             ORDER BY
-                Join_date
+                Valid_from
             '''
         guild_hist_sql = execute_query(query, return_type="df")
  
@@ -266,9 +268,9 @@ def run_reports():
     st.subheader('Gildyjne Pola Chwały  \n  \n',anchor='gpch',  divider='rainbow')
     st.text("\n\n\n")
     gpch_player_stats(filters)
-    st.subheader('Statystyki w Gildii  \n  \n',anchor='stats',  divider='rainbow')
-    st.text("\n\n\n")
-    guild_player_stats(filters)
+    # st.subheader('Statystyki w Gildii  \n  \n',anchor='stats',  divider='rainbow')
+    # st.text("\n\n\n")
+    # guild_player_stats(filters)
     st.subheader('Historia zmian w Gildii  \n  \n',anchor='history',  divider='rainbow')
     st.text("\n\n\n")
     guild_player_history(filters)

@@ -70,9 +70,6 @@ def load_file(Load_Method, File_type, visibility = True):
     else:
         return None
 
-
-
-
 def load_data_intoDB(db_conn, dfName, DfData, vdate = date.today()):
  
     
@@ -203,7 +200,6 @@ def run_loads(Load_Method, guildPlayers_data, wg_data, gpch_data, vdate):
         st.session_state.pop(f"{Load_Method}_{guildPlayers}")
         st.session_state.pop(f"{Load_Method}_{wg}")
         st.session_state.pop(f"{Load_Method}_{gpch}")
-
 
 def main():    
     st.set_page_config(

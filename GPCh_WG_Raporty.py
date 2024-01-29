@@ -98,7 +98,8 @@ from V_WG where report_date = '{date_filter}'
                 ,  WG_LEVEL
                 , "forecast"
 from V_WG where report_date = '{date_filter}' 
-AND solvedEncounters < "forecast" ''',
+AND solvedEncounters < "forecast" 
+''',
         return_type="df",
     )
 

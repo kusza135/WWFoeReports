@@ -22,4 +22,4 @@ def runsql(dbconnector, query):
             rs = con.execute(text(query) )
     except Exception as e:
         st.write(query)
-        raise ValueError(e.with_traceback) 
+        raise e.with_traceback

@@ -22,7 +22,7 @@ def first_report():
         modification_container = st.container()
         with modification_container:
             filters = []
-            df= execute_query(f'''SELECT clanId, name AS Gildia  FROM V_all_guilds''',return_type="df",
+            df= execute_query(f'''SELECT clanId, name AS Gildia  FROM V_all_guilds WHERE world = '{get_world_id()}'  and clanId <> {get_guild_id()} ''',return_type="df",
                     )
             to_filter_columns = st.multiselect("Wybierz gildie", df.Gildia.sort_values().unique(),  placeholder="Rozwiń lub zacznij wpisywać")
             for row in to_filter_columns:

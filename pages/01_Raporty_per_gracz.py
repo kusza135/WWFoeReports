@@ -1,6 +1,6 @@
 import streamlit as st
 from PIL import Image
-from tools.streamlit_tools import execute_query
+from tools.streamlit_tools import execute_query, get_guild_name
 # import pandas as pd
 import  altair as alt
 from tools.login import login
@@ -254,7 +254,7 @@ def run_reports():
     colx, coly = st.columns([5, 10])
     image = Image.open(path + '/../.streamlit/Logo.png')
     colx.image(image, width=150)
-    coly.title('Wzgórze Wisielców  \n\n', anchor='main')
+    coly.title(f'{get_guild_name()}  \n\n', anchor='main')
     
     st.subheader(" ##  Postępy Graczy  ## ", anchor='PostępyGraczy')
     

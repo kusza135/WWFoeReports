@@ -1,6 +1,6 @@
 import streamlit as st
 from PIL import Image
-from tools.streamlit_tools import execute_query, create_engine, runsql
+from tools.streamlit_tools import get_guild_name, create_engine, runsql
 from tools.login import login, get_user_role_from_db
 import os
 # import streamlit_authenticator as stauth
@@ -216,7 +216,7 @@ def main():
     colx, coly = st.columns([5, 10])
     image = Image.open(path + '/../.streamlit/Logo.png')
     colx.image(image, width=150)
-    coly.title('Wzgórze Wisielców  \n\n', anchor='main')
+    coly.title(f'{get_guild_name()}  \n\n', anchor='main')
 
     authenticator, users, username  = login()
     if username:

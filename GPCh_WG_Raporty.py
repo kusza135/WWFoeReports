@@ -2,7 +2,7 @@ import streamlit as st
 import altair as alt
 # from streamlit_extras.stylable_container import stylable_container
 from PIL import Image
-from tools.streamlit_tools import execute_query
+from tools.streamlit_tools import execute_query, get_guild_name
 from tools.login import login
 import os
 
@@ -25,7 +25,7 @@ def run_reports():
     colx, coly, colz = st.columns([5, 10, 3])
     image = Image.open(path + '/.streamlit/Logo.png')
     colx.image(image, width=150)
-    coly.title('Wzgórze Wisielców  \n\n', anchor='main')
+    coly.title(f'{get_guild_name()}  \n\n', anchor='main')
     with colz as x:
         last_refresh_date()
     

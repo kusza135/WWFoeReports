@@ -1,15 +1,13 @@
 import streamlit as st
 from streamlit_extras.stylable_container import stylable_container
-from PIL import Image
-from tools.streamlit_tools import execute_query, get_guild_name, get_guild_id
+from tools.streamlit_tools import execute_query, get_guild_id, get_world_id, page_header
 from tools.login import login
-import os
 import pandas as pd
 
 dump_value = "-1z"
 st.session_state['textmsg']= dump_value
 
-path = os.path.dirname(__file__)
+
 
 # if 'df_editable' not in st.session_state:
 #     st.session_state["df_editable"] = None
@@ -48,7 +46,7 @@ def first_report():
                     , STATUS
                     , notes
                 FROM V_all_players
-                WHERE ClanId <> {get_guild_id()} or ClanId IS NULL
+                WHERE world = '{get_world_id()}'  and (ClanId <> {get_guild_id()} or ClanId IS NULL)
                 ''',
                         return_type="df",
                     )
@@ -100,20 +98,13 @@ def first_report():
 
 
 def run_reports():
-    # st.empty
-    colx, coly = st.columns([5, 10])
-    image = Image.open(path + '/../.streamlit/Logo.png')
-    colx.image(image, width=150)
-    coly.title(f'{get_guild_name()}  \n\n', anchor='main')
-    
-    st.subheader(" ##  Panel rekrutacyjny  ## ", anchor='Rekrutacja')
-    
+    st.subheader(" ##  Panel rekrutacyjny  ## ", anchor='Rekrutacja')  
     first_report()
 
         
 if __name__ == '__main__':
     st.set_page_config(
-        page_title="WW Stats - Panel rekrutacyjny",
+        page_title="WW Stats",
         page_icon=".streamlit//logo.png",
         layout="wide",
         initial_sidebar_state="expanded",
@@ -122,7 +113,8 @@ if __name__ == '__main__':
             'Report a Bug' : 'mailto:adamus01@gmail.com', 
             'About': "# This apps may help to monitor guild health."
         }
-    )      
+    ) 
+    page_header()
     if 'authenticator_status' not in st.session_state:
         st.session_state.authenticator_status = None
     login()

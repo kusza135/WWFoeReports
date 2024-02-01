@@ -1,7 +1,7 @@
 import streamlit as st
 from streamlit_extras.stylable_container import stylable_container
 from PIL import Image
-from tools.streamlit_tools import execute_query, get_guild_name
+from tools.streamlit_tools import execute_query, page_header
 from tools.login import login, get_user_role_from_db, reset_password, db_change_pwd
 import os
 import streamlit_authenticator as stauth
@@ -12,9 +12,9 @@ def new_user(login, UserName, Password):
     execute_query(f"call p_add_user('{login}','{UserName}', '{Password}')", return_type="df")
 
     
-def main():    
+def main():
     st.set_page_config(
-        page_title="WW Stats - Administracja",
+        page_title="WW Stats",
         page_icon=".streamlit//logo.png",
         layout="wide",
         initial_sidebar_state="expanded",
@@ -23,11 +23,8 @@ def main():
             'Report a Bug' : 'mailto:adamus01@gmail.com', 
             'About': "# This apps may help to monitor guild health."
         }
-    )  
-    colx, coly = st.columns([5, 10])
-    image = Image.open(path + '/../.streamlit/Logo.png')
-    colx.image(image, width=150)
-    coly.title(f'{get_guild_name()}  \n\n', anchor='main')
+    )    
+    page_header()
     authenticator, users, username  = login()
     if username:
         role = get_user_role_from_db(username)

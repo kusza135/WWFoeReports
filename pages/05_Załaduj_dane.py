@@ -1,6 +1,6 @@
 import streamlit as st
 from PIL import Image
-from tools.streamlit_tools import get_guild_name, create_engine, runsql
+from tools.streamlit_tools import page_header, create_engine, runsql
 from tools.login import login, get_user_role_from_db
 import os
 # import streamlit_authenticator as stauth
@@ -203,7 +203,7 @@ def run_loads(Load_Method, guildPlayers_data, wg_data, gpch_data, vdate):
 
 def main():    
     st.set_page_config(
-        page_title="WW Stats - Załaduj dane",
+        page_title="WW Stats",
         page_icon=".streamlit//logo.png",
         layout="wide",
         initial_sidebar_state="expanded",
@@ -212,11 +212,8 @@ def main():
             'Report a Bug' : 'mailto:adamus01@gmail.com', 
             'About': "# This apps may help to monitor guild health."
         }
-    )  
-    colx, coly = st.columns([5, 10])
-    image = Image.open(path + '/../.streamlit/Logo.png')
-    colx.image(image, width=150)
-    coly.title(f'{get_guild_name()}  \n\n', anchor='main')
+    )    
+    page_header()
 
     authenticator, users, username  = login()
     if username:

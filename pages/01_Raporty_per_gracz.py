@@ -1,6 +1,6 @@
 import streamlit as st
 from PIL import Image
-from tools.streamlit_tools import execute_query, get_guild_name
+from tools.streamlit_tools import execute_query, page_header
 # import pandas as pd
 import  altair as alt
 from tools.login import login
@@ -250,12 +250,6 @@ def list_notes_for_users(filters):
 
    
 def run_reports():
-    # st.empty
-    colx, coly = st.columns([5, 10])
-    image = Image.open(path + '/../.streamlit/Logo.png')
-    colx.image(image, width=150)
-    coly.title(f'{get_guild_name()}  \n\n', anchor='main')
-    
     st.subheader(" ##  Postępy Graczy  ## ", anchor='PostępyGraczy')
     
     filters = filter_Setup()
@@ -278,9 +272,10 @@ def run_reports():
     
     
      
-if __name__ == '__main__':    
+if __name__ == '__main__': 
+
     st.set_page_config(
-        page_title="WW Stats - Raporty per gracz",
+        page_title="WW Stats",
         page_icon=".streamlit//logo.png",
         layout="wide",
         initial_sidebar_state="expanded",
@@ -289,7 +284,8 @@ if __name__ == '__main__':
             'Report a Bug' : 'mailto:adamus01@gmail.com', 
             'About': "# This apps may help to monitor guild health."
         }
-    )  
+    ) 
+    page_header()
     if 'authenticator_status' not in st.session_state:
         st.session_state.authenticator_status = None
     login()

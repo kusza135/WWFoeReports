@@ -2,7 +2,7 @@ import streamlit as st
 import altair as alt
 # from streamlit_extras.stylable_container import stylable_container
 from PIL import Image
-from tools.streamlit_tools import execute_query, get_guild_name
+from tools.streamlit_tools import execute_query, page_header
 from tools.login import login
 import os
 
@@ -20,15 +20,6 @@ def change_text(type, msg):
 
 
 def run_reports():
-   
-    # st.empty
-    colx, coly, colz = st.columns([5, 10, 3])
-    image = Image.open(path + '/.streamlit/Logo.png')
-    colx.image(image, width=150)
-    coly.title(f'{get_guild_name()}  \n\n', anchor='main')
-    with colz as x:
-        last_refresh_date()
-    
     check_nick_name_change()
     
     st.subheader("  ##  Filtr (suwak) po dacie  ## ")
@@ -63,13 +54,7 @@ order by 1''', return_type="list"
         st.text("\n\n\n")
         guild_stats(date_filter)
 
-
-def last_refresh_date():
-    query = f'SELECT MAX(last_update_date) AS last_update_date FROM t_log'
-    text_var = execute_query(query=query, return_type="df")
-    st.markdown(f"<h7 style='text-align: center; color: grey;'><center>Data ostatniego odświeżenia raportu:<br><b>{str(text_var['last_update_date'].iloc[0])}</b></center></h7>", unsafe_allow_html=True) 
-    
-  
+ 
 
 def wg_reports(date_filter):
     st.subheader('Wyprawy Gildyjne  \n  \n',anchor='wg',  divider='rainbow')
@@ -285,8 +270,9 @@ def check_nick_name_change():
 
         
 if __name__ == '__main__':    
+  
     st.set_page_config(
-        page_title="WW Stats - Podsumowanie GPCh & WG",
+        page_title="WW Stats",
         page_icon=".streamlit//logo.png",
         layout="wide",
         initial_sidebar_state="expanded",
@@ -295,7 +281,8 @@ if __name__ == '__main__':
             'Report a Bug' : 'mailto:adamus01@gmail.com', 
             'About': "# This apps may help to monitor guild health."
         }
-    )    
+    ) 
+    page_header()
     if 'authenticator_status' not in st.session_state:
         st.session_state.authenticator_status = None
     login()

@@ -29,7 +29,7 @@ def last_refresh_date():
     query = f'SELECT MAX(last_update_date) AS last_update_date FROM t_log'
     text_var = execute_query(query=query, return_type="df")
     st.markdown(f"<h7 style='text-align: center; color: grey;'><center>Świat:<br><b>{get_world_name(get_world_id())}</b></center></h7>", unsafe_allow_html=True) 
-    st.markdown(f"<h7 style='text-align: center; color: grey;'><center>Data ostatniego odświeżenia raportu:<br><b>{str(text_var['last_update_date'].iloc[0])}</b></center></h7>", unsafe_allow_html=True) 
+    st.markdown(f"<h7 style='text-align: center; color: grey;'><center>Data ostatniego odświeżenia raportu WG/GPCh:<br><b>{str(text_var['last_update_date'].iloc[0])}</b></center></h7>", unsafe_allow_html=True) 
     
     
 def page_header():

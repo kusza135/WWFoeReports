@@ -16,8 +16,9 @@ def get_world_id():
     return get_global_params('world')
 
 def get_world_name(word_id):
-    worlds = eval(get_global_params('worlds'))
-    return worlds[word_id]
+    sql = execute_query(
+            f'''SELECT world_name FROM V_worlds WHERE world  = '{get_world_id()}' ''', return_type="df",)
+    return sql["world_name"].iloc[0]
 
 def get_guild_name():
     sql = execute_query(

@@ -1,5 +1,5 @@
 import streamlit as st
-from streamlit_timeline import timeline
+# from streamlit_timeline import timeline
 from streamlit_extras.stylable_container import stylable_container
 from tools.streamlit_tools import execute_query, get_guild_id, get_world_id, page_header
 from tools.login import login

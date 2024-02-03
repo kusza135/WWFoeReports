@@ -1,5 +1,4 @@
 import streamlit as st
-# from streamlit_timeline import timeline
 from streamlit_extras.stylable_container import stylable_container
 from tools.streamlit_tools import execute_query, get_guild_id, get_world_id, page_header
 from tools.login import login
@@ -9,94 +8,120 @@ dump_value = "-1z"
 st.session_state['textmsg']= dump_value
 
 
-
-# if 'df_editable' not in st.session_state:
-#     st.session_state["df_editable"] = None
-
-# def assign_session_p():
-#     st.markdown(f"*{st.session_state['textmsg']}*")
-#     st.write(st.session_state['2_key'])
-#     change_text(st.session_state['textmsg'], st.session_state['2_key'])
 def first_report():
-    
-    def exl_guids() -> list:
+
+    all_players = execute_query(
+        f'''SELECT 
+                world
+                , playerId
+                , Player_rank as "Ranking"
+                , name Gracz
+                , Player_link
+                , ClanId
+                , clanName Gildia
+                , points "Punty Rankingowe"
+                , battles "Wygrane Bitwy"
+                , Age_PL "Epoka"
+                , pointsDif "Zdobyte punkty (wczoraj)"
+                , battlesDif "Walki (wczoraj)"
+                , prospect as Prospect
+                , avg_last_battles
+                , avg_last_points
+                , STATUS as "Status"
+                , notes
+            FROM V_all_players
+            WHERE   
+                world = '{get_world_id()}'  and (ClanId <> {get_guild_id()} or ClanId IS NULL)
+                and valid_to = '3000-12-31'
+            ''',
+                    return_type="df",
+                )
+    df_tabs_player_activity = execute_query(
+        f'''SELECT 
+                world
+                , playerId
+                , name
+                , points as "Punty rankingowe"
+                , battles as "Liczba bitew"
+                , pointsDif as "Różnica punktów rankingowych"
+                , battlesDif as "Różnica bitew"
+                , CAST(DATE_ADD(valid_from, INTERVAL -1 DAY) AS CHAR) as Data_danych
+            FROM V_all_players
+            WHERE 
+                world = '{get_world_id()}'  
+                AND valid_from > DATE_ADD(CURRENT_DATE(), INTERVAL -30 DAY)
+            ''',
+                    return_type="df",
+                )     
+    df_tabs_player_other_worlds = execute_query(
+        f'''SELECT 
+                world_name "Świat"
+                , playerId
+                , name as "Gracz"
+                , points as "Punty rankingowe"
+                , battles as "Liczba Bitw"
+                , pointsDif as "Różnica punktów rankingowych"
+                , battlesDif as "Różnica bitw"
+            FROM V_all_players
+            WHERE world <> '{get_world_id()}'  AND valid_to = '3000-12-31'
+            ''',
+                    return_type="df",
+                ) 
+    df_player_guild_history = execute_query(
+                f'''SELECT  
+                        playerId
+                        , name as Gracz
+                        , clanName AS Gildia
+                        , MIN(VALID_FROM) "Data dołączenia"
+                        FROM V_all_players
+                        WHERE world  = '{get_world_id()}'
+                    GROUP BY playerId, Gracz, GILDIA
+                    ''',
+                            return_type="df",
+                        ) 
+    df_ages = execute_query(f'''SELECT id, Age_PL  FROM t_ages WHERE valid_to = '3000-12-31' ORDER BY id ''',return_type="df")
+    df_exl_guilds = execute_query(f'''SELECT clanId, name AS Gildia  FROM V_all_guilds WHERE world = '{get_world_id()}'  and clanId <> {get_guild_id()} ''',return_type="df")
+
+
+    def exl_guids(df_exl_guilds) -> list:
         modification_container = st.container()
         with modification_container:
             filters = []
-            df= execute_query(f'''SELECT clanId, name AS Gildia  FROM V_all_guilds WHERE world = '{get_world_id()}'  and clanId <> {get_guild_id()} ''',return_type="df",
-                    )
-            to_filter_columns = st.multiselect("Wybierz gildie", df.Gildia.sort_values().unique(),  placeholder="Rozwiń lub zacznij wpisywać")
+            to_filter_columns = st.multiselect("Wybierz gildie", df_exl_guilds.Gildia.sort_values().unique(),  placeholder="Rozwiń lub zacznij wpisywać")
             for row in to_filter_columns:
-                df2=df.loc[df['Gildia'] == row, 'clanId'].iloc[0]
+                df2=df_exl_guilds.loc[df_exl_guilds['Gildia'] == row, 'clanId'].iloc[0]
                 filters.append(df2)
         return filters
     
-    def select_ages() -> list:
+    def select_ages(df_ages) -> list:
         modification_container = st.container()
         with modification_container:
             filters = []
-            df= execute_query(f'''SELECT id, Age_PL  FROM t_ages WHERE valid_to = '3000-12-31' ORDER BY id ''',return_type="df",
-                    )
-            to_filter_columns = st.multiselect("Wybierz Epoki", df.Age_PL.sort_index().unique(),  placeholder="Rozwiń lub zacznij wpisywać")
+
+            to_filter_columns = st.multiselect("Wybierz Epoki", df_ages.Age_PL.sort_index().unique(),  placeholder="Rozwiń lub zacznij wpisywać")
             for row in to_filter_columns:
-                df2=df.loc[df['Age_PL'] == row, 'Age_PL'].iloc[0]
+                df2=df_ages.loc[df_ages['Age_PL'] == row, 'Age_PL'].iloc[0]
                 filters.append(df2)
         return filters
 
-    def tabs_player_activity(Player_id):
-        tabs_player_activity = execute_query(
-                    f'''SELECT 
-                            world
-                            , playerId
-                            , name
-                            , points as "Punty rankingowe"
-                            , battles as "Liczba bitew"
-                            , pointsDif as "Różnica punktów rankingowych"
-                            , battlesDif as "Różnica bitew"
-                            , CAST(DATE_ADD(valid_from, INTERVAL -1 DAY) AS CHAR) as Data_danych
-                        FROM V_all_players
-                        WHERE world = '{get_world_id()}'  and playerId in ({Player_id}) AND valid_from > CURRENT_DATE()-31
-                        ''',
-                                return_type="df",
-                            ) 
+    def tabs_player_activity(df_tabs_player_activity, Player_id):
+        st.info("Dane dostępne od 2024-02-01 ")
         ops = st.radio(label="Wybierz metryki:", options=['Punty rankingowe', 'Liczba bitew', 'Różnica punktów rankingowych', 'Różnica bitew'], horizontal=True, index=3)
-        st.line_chart(tabs_player_activity, x="Data_danych", y=ops)
+        # st.dataframe(tabs_player_activity)
+        st.line_chart(df_tabs_player_activity[df_tabs_player_activity['playerId'] == Player_id], x="Data_danych", y=ops)
         
-    def tabs_player_other_worlds(Player_id):
-        tabs_player_activity = execute_query(
-                    f'''SELECT 
-                            world_name "Świat"
-                            , playerId
-                            , name as "Gracz"
-                            , points as "Punty rankingowe"
-                            , battles as "Liczba Bitw"
-                            , pointsDif as "Różnica punktów rankingowych"
-                            , battlesDif as "Różnica bitw"
-                        FROM V_all_players
-                        WHERE world <> '{get_world_id()}'  and playerId in ({Player_id}) AND valid_to = '3000-12-31'
-                        ''',
-                                return_type="df",
-                            ) 
+    def tabs_player_other_worlds(df_tabs_player_other_worlds, Player_id):
+        st.dataframe(df_tabs_player_other_worlds[df_tabs_player_other_worlds['playerId'] == Player_id], use_container_width=True, hide_index= True)
         
-        st.dataframe(tabs_player_activity, use_container_width=True, hide_index= True)
-        
-    # def guild_history(Player_id):
-    #     player_guild_history = execute_query(
-    #                 f'''SELECT  
-    #                         name as Gracz
-    #                         , clanName AS Gildia
-    #                         , MIN(VALID_FROM) start
-    #                         FROM V_all_players
-    #                         WHERE world  = '{get_world_id()}'
-    #                         AND playerId =  {Player_id}
-    #                     GROUP BY  Gracz, GILDIA
-    #                     ORDER BY start
-    #                     ''',
-    #                             return_type="df",
-    #                         ) 
-    #     st.write(player_guild_history.to_json(orient="records", date_format="iso"))
-    #     # st.write(player_guild_history.to_dict(orient="records")[0])
-    #     timeline(player_guild_history.to_json(orient="records", date_format="iso"), height=300)
+    def guild_history(df_player_guild_history, Player_id):
+        st.info("Dane dostępne od 2024-02-01 ")
+        st.dataframe(
+                df_player_guild_history[df_player_guild_history['playerId'] == Player_id].sort_values(by=["Data dołączenia"], ascending=True)
+                , use_container_width=True
+                , hide_index= True
+                , column_config={"playerId" : None}
+                )
+
         
         
     def dataframe_with_selections(df):
@@ -131,39 +156,14 @@ def first_report():
             selected_player = selected_rows["playerId"].iloc[0]
             return selected_player
     
-    all_players = execute_query(
-            f'''SELECT 
-                    world
-                    , playerId
-                    , Player_rank as "Ranking"
-                    , name Gracz
-                    , Player_link
-                    , ClanId
-                    , clanName Gildia
-                    , points "Punty Rankingowe"
-                    , battles "Wygrane Bitwy"
-                    , Age_PL "Epoka"
-                    , pointsDif "Zdobyte punkty (wczoraj)"
-                    , battlesDif "Walki (wczoraj)"
-                    , prospect as Prospect
-                    , avg_last_battles
-                    , avg_last_points
-                    , STATUS as "Status"
-                    , notes
-                FROM V_all_players
-                WHERE   
-                    world = '{get_world_id()}'  and (ClanId <> {get_guild_id()} or ClanId IS NULL)
-                    and valid_to = '3000-12-31'
-                ''',
-                        return_type="df",
-                    )
+    
 
     with st.expander(label="Filtuj ...", expanded=True):
         col1, col2, col3, col4, col5 = st.columns(5)
         with col1.container():
             exl_guilds = st.checkbox(label="Wyklucz wybrane gildie", value=False)
             if exl_guilds:
-                f_exl_guilds = exl_guids()
+                f_exl_guilds = exl_guids(df_exl_guilds)
                 all_players = all_players[~all_players['ClanId'].isin(f_exl_guilds)]
         with col2.container():
             homeless = st.radio(label="Gracze", options=['bez Gildii', 'w Gildii', 'Wszyscy'], index=2)
@@ -186,7 +186,7 @@ def first_report():
         with col4.container():
             x_select_ages = st.checkbox(label="Wybierz wybrane Epoki", value=False)
             if x_select_ages:
-                f_select_ages = select_ages()
+                f_select_ages = select_ages(df_ages)
                 all_players = all_players[all_players['Epoka'].isin(f_select_ages)]
                             
 
@@ -197,11 +197,11 @@ def first_report():
     tab1, tab2, tab3, tab4 = st.tabs(["Prospect", "Historia Aktywności Gracza", "Historia Gildii", "Inne Światy"])
     if  selected_player is not None:
         with tab2:
-            tabs_player_activity(selected_player)
-        # with tab3:
-        #     guild_history(selected_player)
+            tabs_player_activity(df_tabs_player_activity, selected_player)
+        with tab3:
+            guild_history(df_player_guild_history, selected_player)
         with tab4:
-            tabs_player_other_worlds(selected_player)
+            tabs_player_other_worlds(df_tabs_player_other_worlds, selected_player)
 
 
 def run_reports():

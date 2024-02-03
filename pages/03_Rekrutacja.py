@@ -1,4 +1,5 @@
 import streamlit as st
+from streamlit_timeline import timeline
 from streamlit_extras.stylable_container import stylable_container
 from tools.streamlit_tools import execute_query, get_guild_id, get_world_id, page_header
 from tools.login import login
@@ -78,6 +79,25 @@ def first_report():
                             ) 
         
         st.dataframe(tabs_player_activity, use_container_width=True, hide_index= True)
+        
+    # def guild_history(Player_id):
+    #     player_guild_history = execute_query(
+    #                 f'''SELECT  
+    #                         name as Gracz
+    #                         , clanName AS Gildia
+    #                         , MIN(VALID_FROM) start
+    #                         FROM V_all_players
+    #                         WHERE world  = '{get_world_id()}'
+    #                         AND playerId =  {Player_id}
+    #                     GROUP BY  Gracz, GILDIA
+    #                     ORDER BY start
+    #                     ''',
+    #                             return_type="df",
+    #                         ) 
+    #     st.write(player_guild_history.to_json(orient="records", date_format="iso"))
+    #     # st.write(player_guild_history.to_dict(orient="records")[0])
+    #     timeline(player_guild_history.to_json(orient="records", date_format="iso"), height=300)
+        
         
     def dataframe_with_selections(df):
         df_with_selections = df.copy()
@@ -174,11 +194,13 @@ def first_report():
     selected_player = dataframe_with_selections(all_players)
 
 
-    tab1, tab2, tab3 = st.tabs(["Prospect", "Historia Aktywności Gracza", "Inne Światy"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Prospect", "Historia Aktywności Gracza", "Historia Gildii", "Inne Światy"])
     if  selected_player is not None:
         with tab2:
             tabs_player_activity(selected_player)
-        with tab3:
+        # with tab3:
+        #     guild_history(selected_player)
+        with tab4:
             tabs_player_other_worlds(selected_player)
 
 

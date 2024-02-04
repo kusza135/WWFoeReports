@@ -1,4 +1,5 @@
 import streamlit as st
+import altair as alt
 from streamlit_extras.stylable_container import stylable_container
 from tools.streamlit_tools import execute_query, get_guild_id, get_world_id, page_header
 from tools.login import login
@@ -108,7 +109,27 @@ def first_report():
         st.info("Dane dostępne od 2024-02-01 ")
         ops = st.radio(label="Wybierz metryki:", options=['Punty rankingowe', 'Liczba bitew', 'Różnica punktów rankingowych', 'Różnica bitew'], horizontal=True, index=3)
         # st.dataframe(tabs_player_activity)
-        st.line_chart(df_tabs_player_activity[df_tabs_player_activity['playerId'] == Player_id], x="Data_danych", y=ops)
+        pl_name = df_tabs_player_activity[df_tabs_player_activity['playerId'] == Player_id]["name"].iloc[0]
+        c= alt.Chart(df_tabs_player_activity[df_tabs_player_activity['playerId'] == Player_id]).mark_line(
+                                point=alt.OverlayMarkDef(filled=False, fill="white", size=50)
+                                        ).encode(
+                                            x=alt.X("Data_danych", title='Data danych'),
+                                            y=alt.Y(ops, title=ops)
+                                            , tooltip=ops
+                                        ).properties(
+                                                    title=f"Historia gry {pl_name} z ostatnich 30 dni"
+                                                    # width=alt.Step(400)  # controls width of bar.
+                                                ).interactive()
+        text = c.mark_text(
+            align='center'
+            , baseline='top'
+            , color="black"
+            , fontSize = 13
+            , dy=-30  # Nudges text to right so it doesn't appear on top of the bar
+            ).encode(
+                text=f"{ops}:Q",
+                )
+        st.altair_chart(c + text, use_container_width=True)    
         
     def tabs_player_other_worlds(df_tabs_player_other_worlds, Player_id):
         st.dataframe(df_tabs_player_other_worlds[df_tabs_player_other_worlds['playerId'] == Player_id], use_container_width=True, hide_index= True)
@@ -174,7 +195,7 @@ def first_report():
             elif homeless == 'bez Gildii':
                 None
         with col3.container():
-            filter_by_activity = st.checkbox(label="Wyświetl tylko aktywnych", value=False)
+            filter_by_activity = st.checkbox(label="Wyświetl tylko aktywnych", value=True)
             if filter_by_activity:
                 choose_option = st.radio(label="Filtruj po", options=['Bitwy', 'Punkty'], index=0, horizontal=True, label_visibility="hidden")
                 if choose_option == 'Bitwy':

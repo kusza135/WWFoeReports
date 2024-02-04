@@ -81,16 +81,26 @@ def first_report():
                             return_type="df",
                         ) 
     df_ages = execute_query(f'''SELECT id, Age_PL  FROM t_ages WHERE valid_to = '3000-12-31' ORDER BY id ''',return_type="df")
-    df_exl_guilds = execute_query(f'''SELECT clanId, name AS Gildia  FROM V_all_guilds WHERE world = '{get_world_id()}'  and clanId <> {get_guild_id()} ''',return_type="df")
+    df_guilds = execute_query(f'''SELECT clanId, name AS Gildia  FROM V_all_guilds WHERE world = '{get_world_id()}'  and clanId <> {get_guild_id()} ''',return_type="df")
 
 
-    def exl_guids(df_exl_guilds) -> list:
+    def exl_guids(df_guilds) -> list:
         modification_container = st.container()
         with modification_container:
             filters = []
-            to_filter_columns = st.multiselect("Wybierz gildie", df_exl_guilds.Gildia.sort_values().unique(),  placeholder="Rozwiń lub zacznij wpisywać")
+            to_filter_columns = st.multiselect("Wybierz gildie", df_guilds.Gildia.sort_values().unique(),  placeholder="Rozwiń lub zacznij wpisywać")
             for row in to_filter_columns:
-                df2=df_exl_guilds.loc[df_exl_guilds['Gildia'] == row, 'clanId'].iloc[0]
+                df2=df_guilds.loc[df_guilds['Gildia'] == row, 'clanId'].iloc[0]
+                filters.append(df2)
+        return filters
+
+    def inc_guids(df_guilds) -> list:
+        modification_container = st.container()
+        with modification_container:
+            filters = []
+            to_filter_columns = st.multiselect("Wybierz gildie", df_guilds.Gildia.sort_values().unique(),  placeholder="Rozwiń lub zacznij wpisywać")
+            for row in to_filter_columns:
+                df2=df_guilds.loc[df_guilds['Gildia'] == row, 'clanId'].iloc[0]
                 filters.append(df2)
         return filters
     
@@ -180,12 +190,17 @@ def first_report():
     
 
     with st.expander(label="Filtuj ...", expanded=True):
-        col1, col2, col3, col4, col5 = st.columns(5)
+        col1, col2, col3, col4, col5 = st.columns([15,5,8,7,10])
         with col1.container():
-            exl_guilds = st.checkbox(label="Wyklucz wybrane gildie", value=False)
-            if exl_guilds:
-                f_exl_guilds = exl_guids(df_exl_guilds)
-                all_players = all_players[~all_players['ClanId'].isin(f_exl_guilds)]
+            f_guilds = st.checkbox(label="Wyklucz/Oznacz wybrane gildie", value=False)
+            if f_guilds:
+                radio_guilds = st.radio(label="Gildie", options=['Wyklucz Gildie', 'Wybrane Gildie'], index=0, horizontal=True, label_visibility="hidden")
+                if radio_guilds== 'Wyklucz Gildie':
+                    f_exl_guilds = exl_guids(df_guilds)
+                    all_players = all_players[~all_players['ClanId'].isin(f_exl_guilds)]
+                elif radio_guilds== 'Wybrane Gildie':
+                    f_inc_guilds = inc_guids(df_guilds)
+                    all_players = all_players[all_players['ClanId'].isin(f_inc_guilds)]  
         with col2.container():
             homeless = st.radio(label="Gracze", options=['bez Gildii', 'w Gildii', 'Wszyscy'], index=2)
             if homeless == 'bez Gildii':

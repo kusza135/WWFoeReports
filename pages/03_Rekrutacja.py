@@ -81,7 +81,7 @@ def first_report():
                             return_type="df",
                         ) 
     df_ages = execute_query(f'''SELECT id, Age_PL  FROM t_ages WHERE valid_to = '3000-12-31' ORDER BY id ''',return_type="df")
-    df_guilds = execute_query(f'''SELECT clanId, name AS Gildia  FROM V_all_guilds WHERE world = '{get_world_id()}'  and clanId <> {get_guild_id()} ''',return_type="df")
+    df_guilds = execute_query(f'''SELECT clanId, name AS Gildia  FROM V_all_guilds WHERE world = '{get_world_id()}' -- and clanId <> {get_guild_id()} ''',return_type="df")
 
 
     def exl_guids(df_guilds) -> list:

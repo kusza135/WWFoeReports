@@ -32,7 +32,7 @@ def first_report():
                 , notes
             FROM V_all_players
             WHERE   
-                world = '{get_world_id()}'  and (ClanId <> {get_guild_id()} or ClanId IS NULL)
+                world = '{get_world_id()}'  -- and (ClanId <> {get_guild_id()} or ClanId IS NULL) 
                 and valid_to = '3000-12-31'
             ''',
                     return_type="df",

@@ -1,19 +1,47 @@
 import streamlit as st
 import altair as alt
-from streamlit_extras.stylable_container import stylable_container
-from tools.streamlit_tools import execute_query, get_guild_id, get_world_id, page_header
+# from streamlit_extras.stylable_container import stylable_container
+from tools.streamlit_tools import execute_query, get_guild_id, get_world_id, page_header, create_engine
 from tools.login import login
 import pandas as pd
+from datetime import date, timedelta
+import numpy as np
+import time
 
 dump_value = "-1z"
 st.session_state['textmsg']= dump_value
 
+@st.cache_resource(ttl=0, experimental_allow_widgets=True)
+def get_prospect_history():
+    sql_prospect_def = f'''SELECT 
+                                            world
+                                            , Guild_name
+                                            , playerId
+                                            , status_id
+                                            , status_Name
+                                            , recriterid
+                                            , name
+                                            , invitation_date
+                                            , future_invitation_date
+                                            , last_change_date
+                                            , notes  
+                                        FROM 
+                                            v_prospects 
+                                        WHERE
+                                            world = '{get_world_id()}' 
+                                            AND guildid = {get_guild_id()}
+                                            '''
+    df_prospect_def = execute_query(sql_prospect_def,return_type="df")
+    return df_prospect_def
 
+# @st.cache_data(ttl=3600, experimental_allow_widgets=True, show_spinner="Pobieranie danych ...") 
+@st.cache_resource(ttl=14400, experimental_allow_widgets=True, show_spinner="Pobieranie danych ...")
 def first_report():
 
-    all_players = execute_query(
+    all_players_worlds = execute_query(
         f'''SELECT 
                 world
+                , world_name
                 , playerId
                 , Player_rank as "Ranking"
                 , name Gracz
@@ -30,13 +58,14 @@ def first_report():
                 , avg_last_points
                 , status_Name as "Status"
                 , notes
+                , valid_to
             FROM V_all_players
-            WHERE   
-                world = '{get_world_id()}'  -- and (ClanId <> {get_guild_id()} or ClanId IS NULL) 
-                and valid_to = '3000-12-31'
+            WHERE valid_to = '3000-12-31'
             ''',
                     return_type="df",
                 )
+    all_players = all_players_worlds.query(f"world == '{get_world_id()}'  ")
+
     df_tabs_player_activity = execute_query(
         f'''SELECT 
                 world
@@ -54,20 +83,10 @@ def first_report():
             ''',
                     return_type="df",
                 )     
-    df_tabs_player_other_worlds = execute_query(
-        f'''SELECT 
-                world_name "Świat"
-                , playerId
-                , name as "Gracz"
-                , points as "Punty rankingowe"
-                , battles as "Liczba Bitw"
-                , pointsDif as "Różnica punktów rankingowych"
-                , battlesDif as "Różnica bitw"
-            FROM V_all_players
-            WHERE world <> '{get_world_id()}'  AND valid_to = '3000-12-31'
-            ''',
-                    return_type="df",
-                ) 
+
+    df_tabs_player_other_worlds =  all_players_worlds.query(f"world != '{get_world_id()}' ")
+    
+
     df_player_guild_history = execute_query(
                 f'''SELECT  
                         playerId
@@ -81,34 +100,19 @@ def first_report():
                             return_type="df",
                         ) 
     df_ages = execute_query(f'''SELECT id, Age_PL  FROM t_ages WHERE valid_to = '3000-12-31' ORDER BY id ''',return_type="df")
-    df_guilds = execute_query(f'''SELECT clanId, name AS Gildia  FROM V_all_guilds WHERE world = '{get_world_id()}' -- and clanId <> {get_guild_id()} ''',return_type="df")
+    df_guilds = execute_query(f'''SELECT clanId, name AS Gildia, members  FROM V_all_guilds WHERE world = '{get_world_id()}' -- and clanId <> {get_guild_id()} ''',return_type="df")
     df_recruters = execute_query(f'''SELECT playerId, name, is_active FROM v_recruters WHERE world = '{get_world_id()}' and guildid = {get_guild_id()} ''',return_type="df")
-    df_prospect_def = execute_query(f'''SELECT 
-                                            world
-                                            , Guild_name
-                                            , playerId
-                                            , status_id
-                                            , status_Name
-                                            , recriterid
-                                            , invitation_date
-                                            , retry_invitation
-                                            , future_invitation_date
-                                            , last_change_date
-                                            , notes  
-                                        FROM 
-                                            v_prospects 
-                                        WHERE
-                                            world = '{get_world_id()}' 
-                                            AND guildid = {get_guild_id()}
-                                            ''',return_type="df")
+    df_statuses = execute_query(f'''SELECT  status_id, status_Name FROM t_statuses WHERE module_name = 'PROSPECT' ''',return_type="df")
+    df_prospect_def = get_prospect_history()
 
 
-    def tabs_player_prospect(df_prospect_def, Player_id, df_selected_player, df_recruters):
+    def tabs_player_prospect(df_prospect_def, Player_id, df_selected_player, df_recruters, delta_number_battles):
         
-        def recruit_index_func(LOV, current_value):
+        def get_index_func(LOV, current_value):
             for (index, item) in enumerate(LOV):
                 if item == current_value:
                     return index
+            return None
 
             
         
@@ -116,21 +120,115 @@ def first_report():
         df_active_row = df_historical_data[df_historical_data['last_change_date'] == df_historical_data["last_change_date"].max()]
         
         st.markdown(body=f"#### Rekrutacja Gracza {df_selected_player['Gracz'].iloc[0]} ####")
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns([15, 15, 30, 30])
         col1.markdown(f"Gracz: **:blue[{df_selected_player['Gracz'].iloc[0]}]**")
         col1.markdown(f"Epoka: **{df_selected_player['Epoka'].iloc[0]}**")
         col2.markdown(f"Gildia: **{df_selected_player['Gildia'].iloc[0]}**")
-        col2.markdown(f"Średnia ilość walk (30 dni): **{df_selected_player['avg_last_battles'].iloc[0]}**")
+        if np.isnan(df_selected_player['ClanId'].iloc[0]):
+            num_of_guild_players = 0
+        else: 
+            num_of_guild_players = df_guilds[df_guilds['clanId'] == df_selected_player['ClanId'].iloc[0]].members.iloc[0]
+        col2.markdown(f"Liczba graczy w Gildii: **{num_of_guild_players}**")
+
         
         df_active_recruters = df_recruters[df_recruters["is_active"]==True].name.sort_index().unique()
-        recruit_index=recruit_index_func(df_recruters[df_recruters["is_active"]==True].playerId.sort_index().unique().tolist(), df_active_row['recriterid'].iloc[0])
+        if df_active_row['recriterid'].empty:
+            recruit_index = None
+        else:
+            recruit_index=get_index_func(df_recruters[df_recruters["is_active"]==True].playerId.sort_index().unique().tolist(), df_active_row['recriterid'].iloc[0])
+        
+        selected_recruit = col3.selectbox(label="Rekruter", options=df_active_recruters, index=recruit_index)
+        if selected_recruit:
+            selected_recruit_id = df_recruters[df_recruters['name'] == selected_recruit].playerId.iloc[0]
+        # selected_recruit_id = ', '.join([str(recr) for recr in np.where(df_active_recruters == selected_recruit)[0]])
+        
+        # inv_date_val = df_active_row['invitation_date'].iloc[0]
+        if df_active_row['invitation_date'].empty:
+            inv_date_val = date.today()
+        else:
+            inv_date_val = df_active_row['invitation_date'].iloc[0]
+        inv_date = col3.date_input(label="Data zaproszenia", value=inv_date_val, format="YYYY-MM-DD", disabled=False, label_visibility="visible")
+        
+        
+        if df_active_row['status_id'].empty:
+            status_index = None
+        else:
+            status_index=get_index_func(df_statuses.status_id.sort_index().unique().tolist(), df_active_row['status_id'].iloc[0])
+        
+        selected_status = col4.selectbox(label="## Status ##", options=df_statuses.status_Name.sort_index().unique(), index=status_index)
+        if selected_status:
+            selected_status_id = df_statuses[df_statuses['status_Name'] == selected_status].status_id.iloc[0]
+        # selected_status_id = ', '.join([str(stat) for stat in np.where(df_statuses == selected_status)[0]])
+        
+        
+        selected_next_communication_date = None        
+        if selected_status == "Zawieszono":
+            selected_next_communication_date = col4.date_input(label="Data następnej komunikacji", value=date.today()+ timedelta(days=60), min_value=date.today(), format="YYYY-MM-DD", disabled=False, label_visibility="visible")
+       
+        col0, col1_tmp, col2_tmp = st.columns([8,22,60])
+        with col1_tmp.container():
+            # st.write("###")
+            st.metric(label="Średnia ilość walk (30 dni)", value=df_selected_player['avg_last_battles'].iloc[0], delta=delta_number_battles, delta_color="normal", help=None, label_visibility="visible")
+        with col2_tmp.container():
+            add_text = st.text_area(label="Uwagi:")
+            if 'selected_recruit_id' in locals() and 'selected_status_id' in locals():
+                if selected_recruit_id is None:
+                    brn_disabled = True
+                if selected_recruit_id and selected_status_id: 
+                    brn_disabled = False
+                    # st.write(int(selected_recruit_id), int(selected_status_id), inv_date, selected_next_communication_date, add_text)
+                    if st.button(label="Zapisz zmiany", on_click=exec_sp, args=('p_prospect_history', get_world_id(), get_guild_id(), Player_id,  selected_status_id, selected_recruit_id, df_selected_player['ClanId'].iloc[0], inv_date, selected_next_communication_date, add_text), type="primary", disabled=brn_disabled):
+                        selected_recruit_id = None
+                        get_prospect_history.clear()
+                        st.success("Zmiany wprowadzone")
+                        st.rerun()
+                        
+    def button_cb():
+        get_prospect_history.clear()
+        # st.cache_data.clear()
+        st.rerun()
+        # df_prospect_def = get_prospect_history()
+        
+    def exec_sp(sp_name, p_world,  p_guildid,  p_playerId, p_status_id,  p_recriterid,  p_playerGuildId = None, p_invitation_date = None,  p_future_invitation_date = None,  p_notes= None):
+        con = create_engine()
+        if p_playerGuildId is None:
+            p_playerGuildId = ''
+        if p_invitation_date is None:
+            p_invitation_date = ''
+        if p_future_invitation_date is None:
+            p_future_invitation_date = ''
+        if p_notes is None:
+            p_notes = ''
+        try:
+            conn = con.raw_connection()
+            cur = conn.cursor()
+            cur.callproc(sp_name, args=[p_world, p_guildid, p_playerId, p_playerGuildId,  int(p_status_id),  int(p_recriterid),  p_invitation_date,   p_future_invitation_date,  p_notes])
+            cur.close() 
+        except Exception as e:
+            st.error(e)
+            time.sleep(20)
+        finally:
+            conn.close()
 
-        col3.selectbox(label="Rekruter", options=df_active_recruters, index=recruit_index)
-        
-        st.dataframe(df_active_row, use_container_width=True, hide_index= True)
-        
-        # st.markdown("#### Historia komunikacji z graczem ####")
-        # st.dataframe(df_historical_data, use_container_width=True, hide_index= True)
+    def prospect_history(df_prospect_def,Player_id):
+        col1, col2 = st.columns([50, 5])
+        col1.markdown("#### Historia komunikacji z graczem ####")
+        col2.button("Refresh", on_click=button_cb) 
+        df_historical_data = df_prospect_def[df_prospect_def['playerId'] == Player_id]
+        st.dataframe(df_historical_data, column_config={
+                            "playerid":  st.column_config.TextColumn(label="Id Gracza"),
+                            "Guild_name": st.column_config.TextColumn(label="Gildia"), 
+                        "status_Name": st.column_config.TextColumn(label="Status"), 
+                        "name": st.column_config.TextColumn(label="Rekruter"), 
+                        "invitation_date" : st.column_config.DateColumn(label="Data zaproszenia", format='YYYY-MM-DD'), 
+                        "future_invitation_date" : st.column_config.DateColumn(label="Data ponowniej komunikacji", format='YYYY-MM-DD'), 
+                        "last_change_date" : st.column_config.DatetimeColumn(label="Data ostatniej zmiany", format='YYYY-MM-DD HH:mm:ss'), 
+                        "notes": st.column_config.TextColumn(label="Notatki"), 
+                        "world": None, 
+                        "status_id" : None,
+                        "recriterid" : None
+                        },
+                     use_container_width=True, hide_index= True)
 
     def exl_guids(df_guilds) -> list:
         modification_container = st.container()
@@ -190,7 +288,28 @@ def first_report():
         st.altair_chart(c + text, use_container_width=True)    
         
     def tabs_player_other_worlds(df_tabs_player_other_worlds, Player_id):
-        st.dataframe(df_tabs_player_other_worlds[df_tabs_player_other_worlds['playerId'] == Player_id], use_container_width=True, hide_index= True)
+        st.dataframe(df_tabs_player_other_worlds[df_tabs_player_other_worlds['playerId'] == Player_id],  column_config={
+                            "world_name": st.column_config.TextColumn(label="Świat"), 
+                            "playerId": st.column_config.TextColumn(label="playerId"), 
+                            "Gracz": st.column_config.TextColumn(label="Gracz"), 
+                            "Epoka" : st.column_config.TextColumn(label="Epoka"), 
+                            "Gildia" : st.column_config.TextColumn(label="Gildia"), 
+                            "Punty rankingowe": st.column_config.TextColumn(label="Punty rankingowe"), 
+                            "Wygrane Bitwy": st.column_config.TextColumn(label="Wygrane Bitwy"), 
+                            "Zdobyte punkty (wczoraj)": st.column_config.TextColumn(label="Zdobyte punkty (wczoraj)"), 
+                            "Walki (wczoraj)": st.column_config.TextColumn(label="Walki (wczoraj)"), 
+                            "world" : None,
+                            "Ranking" : None, 
+                            "Player_link" : None, 
+                            "ClanId" : None,
+                            "notes": None, 
+                            "avg_last_battles": None, 
+                            "avg_last_points": None, 
+                            "Prospect" : None, 
+                            "Status": None,
+                            "valid_to": None
+                        }
+                     , use_container_width=True, hide_index= True)
         
     def guild_history(df_player_guild_history, Player_id):
         st.info("Dane dostępne od 2024-02-01 ")
@@ -201,7 +320,6 @@ def first_report():
                 , column_config={"playerId" : None}
                 )
 
-        
         
     def dataframe_with_selections(df):
         df_with_selections = df.copy()
@@ -221,7 +339,9 @@ def first_report():
                         "avg_last_battles": None, 
                         "avg_last_points": None, 
                         "playerId" : None,
-                        "ClanId" : None
+                        "ClanId" : None, 
+                        "valid_to": None, 
+                        "world_name" : None
                         },
             disabled=( "Ranking", "Gracz", "Player_link", "Gildia", "Punty Rankingowe", "Wygrane Bitwy", "Epoka", "Zdobyte punkty (wczoraj)", "Walki (wczoraj)")
         )
@@ -238,7 +358,7 @@ def first_report():
     
 
     with st.expander(label="Filtuj ...", expanded=True):
-        col1, col2, col3, col4, col5 = st.columns([15,5,8,7,10])
+        col1, col2, col3, col4, col5 = st.columns([15,5,8,8, 10])
         with col1.container():
             f_guilds = st.checkbox(label="Wyklucz/Oznacz wybrane gildie", value=False)
             if f_guilds:
@@ -272,25 +392,34 @@ def first_report():
             if x_select_ages:
                 f_select_ages = select_ages(df_ages)
                 all_players = all_players[all_players['Epoka'].isin(f_select_ages)]
-                            
+        with col5.container():
+            filter_by_prospect = st.checkbox(label="Rekrutacja", value=True)
+            if filter_by_prospect:
+                filter_by_prospect = st.radio(label="Status", options=df_statuses.status_Name.sort_index().unique(), index=0, horizontal=True, label_visibility="hidden")
+                all_players = all_players[all_players['Status'] == (filter_by_prospect)]          
 
 
     df_selected_player = dataframe_with_selections(all_players)
     if df_selected_player is not None: 
-        selected_player =df_selected_player["playerId"].iloc[0]
+        if len(df_selected_player)==1:
+            selected_player =df_selected_player["playerId"].iloc[0]
 
-        tab1, tab2, tab3, tab4 = st.tabs(["Prospect", "Historia Aktywności Gracza", "Historia Gildii", "Inne Światy"])
-        if  selected_player is not None:
-            with tab1:
-                # None
-                tabs_player_prospect(df_prospect_def, selected_player, df_selected_player, df_recruters)
-                
-            with tab2:
-                tabs_player_activity(df_tabs_player_activity, selected_player)
-            with tab3:
-                guild_history(df_player_guild_history, selected_player)
-            with tab4:
-                tabs_player_other_worlds(df_tabs_player_other_worlds, selected_player)
+            if  selected_player is not None:
+                st.divider()
+                if 'number' not in locals():
+                    number = 0
+                tabs_player_prospect(df_prospect_def, selected_player, df_selected_player, df_recruters, number )
+                # st.divider()
+                tab1, tab2, tab3, tab4 = st.tabs(["Historia komunikacji z Graczem", "Historia Aktywności Gracza", "Historia Gildii", "Inne Światy"])
+                with tab1:
+                    get_prospect_history.clear()
+                    prospect_history(get_prospect_history(), selected_player)
+                with tab2:
+                    tabs_player_activity(df_tabs_player_activity, selected_player)
+                with tab3:
+                    guild_history(df_player_guild_history, selected_player)
+                with tab4:
+                    tabs_player_other_worlds(df_tabs_player_other_worlds, selected_player)
 
 
 def run_reports():
@@ -315,5 +444,6 @@ if __name__ == '__main__':
         st.session_state.authenticator_status = None
     login()
     if st.session_state['authenticator_status']:
+        st.cache_resource.clear()
         run_reports()
 

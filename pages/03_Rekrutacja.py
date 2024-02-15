@@ -74,6 +74,7 @@ def get_player_activity():
             , pointsDif as "Różnica punktów rankingowych"
             , battlesDif as "Różnica bitew"
             , CAST(DATE_ADD(valid_from, INTERVAL -1 DAY) AS CHAR) as Data_danych
+            , case when f_gpch_day(DATE_ADD(valid_from, INTERVAL -1 DAY)) > 0 then 500 else 0 END GPCh
         FROM V_all_players
         WHERE 
             world = '{get_world_id()}'  
@@ -309,7 +310,17 @@ def first_report():
                                         ).properties(
                                                     title=f"Historia gry {pl_name} z ostatnich 30 dni"
                                                     # width=alt.Step(400)  # controls width of bar.
-                                                ).interactive()
+                                                )
+
+        tick1 = alt.Chart(df_tabs_player_activity[df_tabs_player_activity['playerId'] == Player_id]).mark_tick(
+            color='purple',
+            thickness=2,
+            size=40 * 0.45,  # controls width of tick.
+        ).encode(
+            x="Data_danych",
+            y="GPCh"
+        ).properties(title="dzień GPCh")
+                                        
         text = c.mark_text(
             align='center'
             , baseline='top'
@@ -319,7 +330,7 @@ def first_report():
             ).encode(
                 text=f"{ops}:Q",
                 )
-        st.altair_chart(c + text, use_container_width=True)    
+        st.altair_chart(c.interactive() + tick1 + text, use_container_width=True)    
         
     def tabs_player_other_worlds(df_tabs_player_other_worlds, Player_id):
         st.dataframe(df_tabs_player_other_worlds[df_tabs_player_other_worlds['playerId'] == Player_id],  column_config={

@@ -1,9 +1,9 @@
 import streamlit as st
 from PIL import Image
-from tools.streamlit_tools import execute_query, page_header
+from tools.streamlit_tools import execute_query, page_header, get_world_id
 # import pandas as pd
 import  altair as alt
-from tools.login import login
+from tools.login import login, check_user_role_permissions
 import os
 
 
@@ -34,6 +34,61 @@ def filter_Setup() -> list:
 
     return filters
 
+def tabs_player_activity(Player_id):
+    df_tabs_player_activity = execute_query(
+    f'''SELECT 
+            world
+            , playerId
+            , name
+            , points as "Punty rankingowe"
+            , battles as "Liczba bitew"
+            , pointsDif as "Różnica punktów rankingowych"
+            , battlesDif as "Różnica bitew"
+            , CAST(DATE_ADD(valid_from, INTERVAL -1 DAY) AS CHAR) as Data_danych
+        FROM V_all_players
+        WHERE 
+            world = '{get_world_id()}'  
+            AND valid_from > DATE_ADD(CURRENT_DATE(), INTERVAL -30 DAY)
+        ''',
+                return_type="df",
+            )   
+    
+    ops = st.radio(label="Wybierz metryki:", options=['Punty rankingowe', 'Liczba bitew', 'Różnica punktów rankingowych', 'Różnica bitew'], horizontal=True, index=3)
+    # st.dataframe(tabs_player_activity)
+    # pl_name = df_tabs_player_activity[df_tabs_player_activity['playerId'] == Player_id]["name"].iloc[0]
+    c= alt.Chart(df_tabs_player_activity[df_tabs_player_activity['playerId'].isin(Player_id)]).mark_line(
+                            point=alt.OverlayMarkDef(filled=True, size=50)
+                                    ).encode(
+                                        x=alt.X("Data_danych", title='Data danych'),
+                                        y=alt.Y(ops, title=ops),
+                                        # color='name:N', 
+                                        color=alt.Color('name:N', legend=alt.Legend(
+                                                                        orient='none',
+                                                                        legendX=450, legendY=-47,
+                                                                        direction='horizontal',
+                                                                        titleAnchor='middle')), 
+                                        # xOffset="name:N",
+                                        tooltip=ops
+                                    ).properties(
+                                                title=f"Historia gry z ostatnich 30 dni"
+                                                , height=600
+                                                , width=alt.Step(400)  # controls width of bar.
+                                            ).interactive()
+    # bars = c.mark_line().encode(
+    #        ,
+    #     )
+    text = c.mark_text(
+        align='center'
+        , baseline='top'
+        , color="black"
+        , fontSize = 13
+        , dy=-30  # Nudges text to right so it doesn't appear on top of the bar
+        ).encode(
+            text=f"{ops}:Q",
+            )
+    st.altair_chart(c + text, use_container_width=True)   
+    
+    
 def wg_player_stats(filters):
         wg_result_all = execute_query(
         f'''select 
@@ -256,6 +311,10 @@ def run_reports():
     
     list_notes_for_users(filters)
     
+    st.subheader('Historia aktywności z ostatnich 30 dni  \n  \n',anchor='activity',  divider='rainbow')
+    st.text("\n\n\n")
+    tabs_player_activity(filters)
+    
     st.subheader('Wyprawy Gildyjne  \n  \n',anchor='wg',  divider='rainbow')
     st.text("\n\n\n")
     wg_player_stats(filters)
@@ -288,7 +347,11 @@ if __name__ == '__main__':
     page_header()
     if 'authenticator_status' not in st.session_state:
         st.session_state.authenticator_status = None
-    login()
-    if st.session_state['authenticator_status']:
-        run_reports()
+    authenticator, users, username  = login()
+    if username:
+        if st.session_state['authenticator_status']:
+            if check_user_role_permissions(username, 'GUILD_PLAYER_STATS') == True:
+                run_reports()   
+            else:
+                st.warning("Nie masz dostępu do tej zawartości.")    
  

@@ -1,7 +1,7 @@
 import streamlit as st
 from PIL import Image
 from tools.streamlit_tools import page_header, create_engine, runsql
-from tools.login import login, get_user_role_from_db
+from tools.login import login, check_user_role_permissions
 import os
 # import streamlit_authenticator as stauth
 import json
@@ -127,7 +127,7 @@ def load_data_intoDB(db_conn, dfName, DfData, vdate = date.today()):
             try:
                 conn = db_conn.raw_connection()
                 cur = conn.cursor()
-                cur.callproc(f"p_{dfName}", args=[f"__{dfName}", {vdate}, wg_day(vdate)])
+                cur.callproc(f"p_{dfName}", args=[f"__{dfName}", {vdate}])
                 cur.close() 
             finally:
                 conn.close()
@@ -145,7 +145,7 @@ def load_data_intoDB(db_conn, dfName, DfData, vdate = date.today()):
             try:
                 conn = db_conn.raw_connection()
                 cur = conn.cursor()
-                cur.callproc(f"p_{dfName}", args=[f"__{dfName}", {vdate}, gpch_day(vdate)])
+                cur.callproc(f"p_{dfName}", args=[f"__{dfName}", {vdate}])
                 cur.close() 
             finally:
                 conn.close()
@@ -217,8 +217,7 @@ def main():
 
     authenticator, users, username  = login()
     if username:
-        role = get_user_role_from_db(username)
-        if role == 'Admin':
+        if check_user_role_permissions(username, 'MANUAL_DATA_RELOAD') == True:
 
             xcol, xlcol, xxlcol = st.columns(3)
             with xcol.container(border=True):
@@ -295,6 +294,6 @@ def main():
                         st.button(label="Załaduj pliki", type='primary', on_click=run_loads, args=(Load_Method, guildPlayers_data, wg_data, gpch_data, vdate)) 
                         
         else:
-            st.markdown('<div style="text-align: center;">Nie masz odpwowiedniej roli by wyświetlić tą zawartość.</div>', unsafe_allow_html=True)
+            st.warning("Nie masz dostępu do tej zawartości.")  
             
 main()

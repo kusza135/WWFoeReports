@@ -2,7 +2,7 @@ import streamlit as st
 from streamlit_extras.stylable_container import stylable_container
 from PIL import Image
 from tools.streamlit_tools import execute_query, page_header
-from tools.login import login
+from tools.login import login, check_user_role_permissions
 import os
 
 dump_value = "-1z"
@@ -149,9 +149,11 @@ if __name__ == '__main__':
         }
     ) 
     page_header()
-    if 'authenticator_status' not in st.session_state:
-        st.session_state.authenticator_status = None
-    login()
-    if st.session_state['authenticator_status']:
-        run_reports()
-
+    authenticator, users, username  = login()
+    if username:
+        # st.write(st.session_state['authenticator_status'])
+        if st.session_state['authenticator_status']:
+            if check_user_role_permissions(username, 'MESSAGES') == True:
+                run_reports()   
+            else:
+                st.warning("Nie masz dostępu do tej zawartości.")  

@@ -2,7 +2,7 @@ import streamlit as st
 import altair as alt
 # from streamlit_extras.stylable_container import stylable_container
 from tools.streamlit_tools import execute_query, get_guild_id, get_world_id, page_header, create_engine
-from tools.login import login
+from tools.login import login, check_user_role_permissions
 import pandas as pd
 from datetime import date, timedelta
 import numpy as np
@@ -33,11 +33,8 @@ def get_prospect_history():
                                             '''
     df_prospect_def = execute_query(sql_prospect_def,return_type="df")
     return df_prospect_def
-
-# @st.cache_data(ttl=3600, experimental_allow_widgets=True, show_spinner="Pobieranie danych ...") 
-@st.cache_resource(ttl=14400, experimental_allow_widgets=True, show_spinner="Pobieranie danych ...")
-def first_report():
-
+@st.cache_resource(ttl=14400, experimental_allow_widgets=True, show_spinner="Pobieranie danych (wszyscy gracze) ...")
+def get_all_players_worlds():
     all_players_worlds = execute_query(
         f'''SELECT 
                 world
@@ -64,29 +61,29 @@ def first_report():
             ''',
                     return_type="df",
                 )
-    all_players = all_players_worlds.query(f"world == '{get_world_id()}'  ")
-
-    df_tabs_player_activity = execute_query(
-        f'''SELECT 
-                world
-                , playerId
-                , name
-                , points as "Punty rankingowe"
-                , battles as "Liczba bitew"
-                , pointsDif as "Różnica punktów rankingowych"
-                , battlesDif as "Różnica bitew"
-                , CAST(DATE_ADD(valid_from, INTERVAL -1 DAY) AS CHAR) as Data_danych
-            FROM V_all_players
-            WHERE 
-                world = '{get_world_id()}'  
-                AND valid_from > DATE_ADD(CURRENT_DATE(), INTERVAL -30 DAY)
-            ''',
-                    return_type="df",
-                )     
-
-    df_tabs_player_other_worlds =  all_players_worlds.query(f"world != '{get_world_id()}' ")
-    
-
+    return all_players_worlds
+@st.cache_resource(ttl=28800, experimental_allow_widgets=True, show_spinner="Pobieranie danych (aktywność graczy) ...")
+def get_player_activity():
+    player_activity = execute_query(
+    f'''SELECT 
+            world
+            , playerId
+            , name
+            , points as "Punty rankingowe"
+            , battles as "Liczba bitew"
+            , pointsDif as "Różnica punktów rankingowych"
+            , battlesDif as "Różnica bitew"
+            , CAST(DATE_ADD(valid_from, INTERVAL -1 DAY) AS CHAR) as Data_danych
+        FROM V_all_players
+        WHERE 
+            world = '{get_world_id()}'  
+            AND valid_from > DATE_ADD(CURRENT_DATE(), INTERVAL -30 DAY)
+        ''',
+                return_type="df",
+            )
+    return player_activity
+@st.cache_resource(ttl=28800, experimental_allow_widgets=True, show_spinner="Pobieranie danych (historia gildii) ...")
+def get_player_guild_history():
     df_player_guild_history = execute_query(
                 f'''SELECT  
                         playerId
@@ -99,10 +96,36 @@ def first_report():
                     ''',
                             return_type="df",
                         ) 
+    return df_player_guild_history
+@st.cache_resource(ttl=28800, experimental_allow_widgets=True, show_spinner="Pobieranie danych (epoki) ...")
+def get_df_ages():
     df_ages = execute_query(f'''SELECT id, Age_PL  FROM t_ages WHERE valid_to = '3000-12-31' ORDER BY id ''',return_type="df")
+    return df_ages
+@st.cache_resource(ttl=28800, experimental_allow_widgets=True, show_spinner="Pobieranie danych (wszystkie gildie) ...")
+def get_guilds():
     df_guilds = execute_query(f'''SELECT clanId, name AS Gildia, members  FROM V_all_guilds WHERE world = '{get_world_id()}' -- and clanId <> {get_guild_id()} ''',return_type="df")
+    return df_guilds
+
+@st.cache_resource(ttl=0, experimental_allow_widgets=True, show_spinner="Pobieranie danych (rekruterzy) ...")
+def get_df_recruters():
     df_recruters = execute_query(f'''SELECT playerId, name, is_active FROM v_recruters WHERE world = '{get_world_id()}' and guildid = {get_guild_id()} ''',return_type="df")
+    return df_recruters
+@st.cache_resource(ttl=0, experimental_allow_widgets=True, show_spinner="Pobieranie danych (statusy) ...")
+def get_statuses():
     df_statuses = execute_query(f'''SELECT  status_id, status_Name FROM t_statuses WHERE module_name = 'PROSPECT' ''',return_type="df")
+    return df_statuses
+
+
+def first_report():
+    all_players_worlds = get_all_players_worlds()
+    all_players = all_players_worlds.query(f"world == '{get_world_id()}'  ")
+    df_tabs_player_activity = get_player_activity()   
+    df_tabs_player_other_worlds =  all_players_worlds.query(f"world != '{get_world_id()}' ")
+    df_player_guild_history = get_player_guild_history()
+    df_ages = get_df_ages()
+    df_guilds = get_guilds()
+    df_recruters = get_df_recruters()
+    df_statuses = get_statuses()
     df_prospect_def = get_prospect_history()
 
 
@@ -151,7 +174,7 @@ def first_report():
         
         
         if df_active_row['status_id'].empty:
-            status_index = None
+            status_index = 0
         else:
             status_index=get_index_func(df_statuses.status_id.sort_index().unique().tolist(), df_active_row['status_id'].iloc[0])
         
@@ -185,9 +208,9 @@ def first_report():
                         
     def button_cb():
         get_prospect_history.clear()
-        # st.cache_data.clear()
-        st.rerun()
         # df_prospect_def = get_prospect_history()
+        st.cache_data.clear()
+        st.rerun()
         
     def exec_sp(sp_name, p_world,  p_guildid,  p_playerId, p_status_id,  p_recriterid,  p_playerGuildId = None, p_invitation_date = None,  p_future_invitation_date = None,  p_notes= None):
         con = create_engine()
@@ -250,6 +273,17 @@ def first_report():
                 filters.append(df2)
         return filters
     
+    def inc_players(df_player_guild_history) -> list:
+            modification_container = st.container()
+            with modification_container:
+                filters = []
+                to_filter_columns = st.multiselect("Wybierz gildie", df_player_guild_history.Gracz.sort_values().unique(), max_selections =4, placeholder="Rozwiń lub zacznij wpisywać")
+                for row in to_filter_columns:
+                    df2=df_player_guild_history.loc[df_player_guild_history['Gracz'] == row, 'playerId'].iloc[0]
+                    filters.append(df2)
+            return filters
+        
+
     def select_ages(df_ages) -> list:
         modification_container = st.container()
         with modification_container:
@@ -369,6 +403,12 @@ def first_report():
                 elif radio_guilds== 'Wybrane Gildie':
                     f_inc_guilds = inc_guids(df_guilds)
                     all_players = all_players[all_players['ClanId'].isin(f_inc_guilds)]  
+                    
+            f_players = st.checkbox(label="Wybrany Gracz", value=False)
+            if f_players:
+                f_inc_players  = inc_players(all_players)
+                all_players = all_players[all_players['playerId'].isin(f_inc_players)]  
+            
         with col2.container():
             homeless = st.radio(label="Gracze", options=['bez Gildii', 'w Gildii', 'Wszyscy'], index=2)
             if homeless == 'bez Gildii':
@@ -442,8 +482,12 @@ if __name__ == '__main__':
     page_header()
     if 'authenticator_status' not in st.session_state:
         st.session_state.authenticator_status = None
-    login()
-    if st.session_state['authenticator_status']:
-        st.cache_resource.clear()
-        run_reports()
 
+    authenticator, users, username  = login()
+    if username:
+        # st.write(st.session_state['authenticator_status'])
+        if st.session_state['authenticator_status']:
+            if check_user_role_permissions(username, 'RECRUIT') == True:
+                run_reports()   
+            else:
+                st.warning("Nie masz dostępu do tej zawartości.")  

@@ -107,7 +107,7 @@ def main():
                                     st.markdown('<div style="text-align: center;">Hasła do siebie nie pasują!</div>', unsafe_allow_html=True)
             if options == "Przypisz rolę":
                 user_permissions = execute_query(f'''SELECT 
-                                                        name, UserName, role_name, module_name
+                                                        name, UserName, role_name, module_name, is_active
                                                     FROM 
                                                         v_user_permissions
                                                     WHERE 
@@ -140,7 +140,7 @@ def main():
                         role_permissions_id = roles_permissions[roles_permissions['role_name'] == selected_role_permissions].roleid.iloc[0]
                         if col88.button(label="Przypisz uprawnienia", on_click=exec_sp, args=('p_assign_role',  role_permissions_id,  selected_user_permissions, status_is_active), type="primary"):
                             st.success("Zapisano")
-                st.dataframe(user_permissions, use_container_width=True, hide_index=True)
+                st.dataframe(user_permissions[user_permissions['is_active'] == True], use_container_width=True, hide_index=True)
                 
 
         with tab2.container() as x:

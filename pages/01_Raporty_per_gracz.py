@@ -34,31 +34,36 @@ def filter_Setup() -> list:
 
     return filters
 
-def tabs_player_activity(Player_id):
+@st.cache_data(ttl=14400, experimental_allow_widgets=True, show_spinner="Pobieranie danych (wszyscy gracze) ...")
+def _df_player_activity():
     df_tabs_player_activity = execute_query(
-    f'''SELECT 
-            world
-            , playerId
-            , name
-            , points as "Punty rankingowe"
-            , battles as "Liczba bitew"
-            , pointsDif as "Różnica punktów rankingowych"
-            , battlesDif as "Różnica bitew"
-            , CAST(DATE_ADD(valid_from, INTERVAL -1 DAY) AS CHAR) as Data_danych
-            , case when f_gpch_day(DATE_ADD(valid_from, INTERVAL -1 DAY)) > 0 then 500 else 0 END GPCh
-        FROM V_all_players
-        WHERE 
-            world = '{get_world_id()}'  
-            AND valid_from > DATE_ADD(CURRENT_DATE(), INTERVAL -30 DAY)
-        ''',
-                return_type="df",
-            )   
+        f'''SELECT 
+                world
+                , playerId
+                , name
+                , points as "Punty rankingowe"
+                , battles as "Liczba bitew"
+                , pointsDif as "Różnica punktów rankingowych"
+                , battlesDif as "Różnica bitew"
+                , CAST(DATE_ADD(valid_from, INTERVAL -1 DAY) AS CHAR) as Data_danych
+                , case when f_gpch_day(DATE_ADD(valid_from, INTERVAL -1 DAY)) > 0 then 500 else 0 END GPCh
+            FROM V_all_players
+            WHERE 
+                world = '{get_world_id()}'  
+                AND valid_from > DATE_ADD(CURRENT_DATE(), INTERVAL -30 DAY)
+            ''',
+                    return_type="df",
+                )
+    return df_tabs_player_activity
+
+def tabs_player_activity(Player_id):
+    df_tabs_player_activity = _df_player_activity()
     
     ops = st.radio(label="Wybierz metryki:", options=['Punty rankingowe', 'Liczba bitew', 'Różnica punktów rankingowych', 'Różnica bitew'], horizontal=True, index=3)
     # st.dataframe(tabs_player_activity)
     # pl_name = df_tabs_player_activity[df_tabs_player_activity['playerId'] == Player_id]["name"].iloc[0]
     c= alt.Chart(df_tabs_player_activity[df_tabs_player_activity['playerId'].isin(Player_id)]).mark_line(
-                            point=alt.OverlayMarkDef(filled=True, size=50)
+                            point=alt.OverlayMarkDef(filled=True, size=25)
                                     ).encode(
                                         x=alt.X("Data_danych", title='Data danych'),
                                         y=alt.Y(ops, title=ops),
@@ -73,7 +78,7 @@ def tabs_player_activity(Player_id):
                                     ).properties(
                                                 title=f"Historia gry z ostatnich 30 dni"
                                                 , height=450
-                                                , width='container'  # controls width of bar.
+                                                # , width='container'  # controls width of bar.
                                             )
     # bars = c.mark_line().encode(
     #        ,

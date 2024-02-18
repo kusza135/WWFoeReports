@@ -34,7 +34,7 @@ def filter_Setup() -> list:
 
     return filters
 
-@st.cache_data(ttl=14400, experimental_allow_widgets=True, show_spinner="Pobieranie danych (wszyscy gracze) ...")
+@st.cache_resource(ttl=14400, experimental_allow_widgets=True, show_spinner="Pobieranie danych ...")
 def _df_player_activity():
     df_tabs_player_activity = execute_query(
         f'''SELECT 

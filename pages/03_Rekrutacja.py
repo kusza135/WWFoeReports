@@ -11,7 +11,7 @@ import time
 dump_value = "-1z"
 st.session_state['textmsg']= dump_value
 
-@st.cache_resource(ttl=0, experimental_allow_widgets=True)
+@st.cache_data(ttl=0)
 def get_prospect_history():
     sql_prospect_def = f'''SELECT 
                                             world
@@ -77,8 +77,7 @@ def get_player_activity():
             , case when f_gpch_day(DATE_ADD(valid_from, INTERVAL -1 DAY)) > 0 then 500 else 0 END GPCh
         FROM V_all_players
         WHERE 
-            world = '{get_world_id()}'  
-            AND valid_from > DATE_ADD(CURRENT_DATE(), INTERVAL -30 DAY)
+            valid_from > DATE_ADD(CURRENT_DATE(), INTERVAL -30 DAY)
         ''',
                 return_type="df",
             )
@@ -306,6 +305,8 @@ def first_report():
                                         ).encode(
                                             x=alt.X("Data_danych", title='Data danych'),
                                             y=alt.Y(ops, title=ops)
+                                            # , xOffset="World:N"
+                                            , color='world:N'
                                             , tooltip=ops
                                         ).properties(
                                                     title=f"Historia gry {pl_name} z ostatnich 30 dni"

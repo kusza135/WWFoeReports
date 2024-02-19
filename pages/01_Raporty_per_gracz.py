@@ -1,6 +1,6 @@
 import streamlit as st
 from PIL import Image
-from tools.streamlit_tools import execute_query, page_header, get_world_id
+from tools.streamlit_tools import execute_query, page_header, get_world_id, get_guild_id
 # import pandas as pd
 import  altair as alt
 from tools.login import login, check_user_role_permissions
@@ -51,6 +51,7 @@ def _df_player_activity():
             WHERE 
                 world = '{get_world_id()}'  
                 AND valid_from > DATE_ADD(CURRENT_DATE(), INTERVAL -30 DAY)
+                AND ClanId = '{get_guild_id()}'
             ''',
                     return_type="df",
                 )

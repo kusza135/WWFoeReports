@@ -11,7 +11,7 @@ import time
 dump_value = "-1z"
 st.session_state['textmsg']= dump_value
 
-@st.cache_data(ttl=0)
+@st.cache_data(ttl=0, experimental_allow_widgets=True,)
 def get_prospect_history():
     sql_prospect_def = f'''SELECT 
                                             world
@@ -207,11 +207,7 @@ def first_report():
                         st.success("Zmiany wprowadzone")
                         st.rerun()
                         
-    def button_cb():
-        get_prospect_history.clear()
-        # df_prospect_def = get_prospect_history()
-        st.cache_data.clear()
-        st.rerun()
+
         
     def exec_sp(sp_name, p_world,  p_guildid,  p_playerId, p_status_id,  p_recriterid,  p_playerGuildId = None, p_invitation_date = None,  p_future_invitation_date = None,  p_notes= None):
         con = create_engine()
@@ -234,10 +230,17 @@ def first_report():
         finally:
             conn.close()
 
-    def prospect_history(df_prospect_def,Player_id):
+    def prospect_history(Player_id):
+        def button_cb():
+            get_prospect_history.clear()
+            st.cache_data.clear()
+            # st.rerun()
         col1, col2 = st.columns([50, 5])
+        get_prospect_history.clear()
+        df_prospect_def = get_prospect_history()
         col1.markdown("#### Historia komunikacji z graczem ####")
-        col2.button("Refresh", on_click=button_cb) 
+        col2.button("Refresh", on_click=button_cb ) 
+        
         df_historical_data = df_prospect_def[df_prospect_def['playerId'] == Player_id]
         st.dataframe(df_historical_data, column_config={
                             "playerid":  st.column_config.TextColumn(label="Id Gracza"),
@@ -252,7 +255,7 @@ def first_report():
                         "status_id" : None,
                         "recriterid" : None
                         },
-                     use_container_width=True, hide_index= True)
+                    use_container_width=True, hide_index= True)
 
     def exl_guids(df_guilds) -> list:
         modification_container = st.container()
@@ -465,8 +468,7 @@ def first_report():
                 # st.divider()
                 tab1, tab2, tab3, tab4 = st.tabs(["Historia komunikacji z Graczem", "Historia Aktywności Gracza", "Historia Gildii", "Inne Światy"])
                 with tab1:
-                    get_prospect_history.clear()
-                    prospect_history(get_prospect_history(), selected_player)
+                    prospect_history(selected_player)
                 with tab2:
                     tabs_player_activity(get_player_activity(selected_player), selected_player)
                 with tab3:

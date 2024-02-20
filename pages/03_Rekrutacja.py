@@ -35,7 +35,7 @@ def get_prospect_history(player_id):
     df_prospect_def = execute_query(sql_prospect_def,return_type="df")
     return df_prospect_def
 @st.cache_resource(ttl=14400, experimental_allow_widgets=True, show_spinner="Pobieranie danych (wszyscy gracze) ...")
-def get_all_players_worlds():
+def get_all_players():
     all_players_worlds = execute_query(
         f'''SELECT 
                 world
@@ -58,11 +58,45 @@ def get_all_players_worlds():
                 , notes
                 , valid_to
             FROM V_all_players
-            WHERE valid_to = '3000-12-31'
+            WHERE
+                world = '{get_world_id()}'
+                AND valid_to = '3000-12-31'
             ''',
                     return_type="df",
                 )
     return all_players_worlds
+@st.cache_resource(ttl=14400, experimental_allow_widgets=True, show_spinner="Pobieranie danych (wszyscy gracze) ...")
+def get_player_other_worlds(Player_id):
+    df_tabs_player_other_worlds = execute_query(
+        f'''SELECT 
+                world
+                , world_name
+                , playerId
+                , Player_rank as "Ranking"
+                , name Gracz
+                , Player_link
+                , ClanId
+                , clanName Gildia
+                , points "Punty Rankingowe"
+                , battles "Wygrane Bitwy"
+                , Age_PL "Epoka"
+                , pointsDif "Zdobyte punkty (wczoraj)"
+                , battlesDif "Walki (wczoraj)"
+                , prospect as Prospect
+                , avg_last_battles
+                , avg_last_points
+                , status_Name as "Status"
+                , notes
+                , valid_to
+            FROM V_all_players
+            WHERE 
+                world != '{get_world_id()}'
+                AND playerId = {Player_id}
+                AND valid_to = '3000-12-31'
+            ''',
+                    return_type="df",
+                )
+    return df_tabs_player_other_worlds
 @st.cache_resource(ttl=28800, experimental_allow_widgets=True, show_spinner="Pobieranie danych (aktywność graczy) ...")
 def get_player_activity(Player_id):
     player_activity = execute_query(
@@ -85,16 +119,16 @@ def get_player_activity(Player_id):
             )
     return player_activity
 @st.cache_resource(ttl=28800, experimental_allow_widgets=True, show_spinner="Pobieranie danych (historia gildii) ...")
-def get_player_guild_history():
+def get_player_guild_history(Player_id):
     df_player_guild_history = execute_query(
                 f'''SELECT  
                         playerId
                         , name as Gracz
                         , clanName AS Gildia
-                        , MIN(VALID_FROM) "Data dołączenia"
-                        FROM V_all_players
+                        , joinDate AS "Data dołączenia"
+                        FROM t_player_guild_history
                         WHERE world  = '{get_world_id()}'
-                    GROUP BY playerId, Gracz, GILDIA
+                        AND playerId  = {Player_id}
                     ''',
                             return_type="df",
                         ) 
@@ -119,11 +153,8 @@ def get_statuses():
 
 
 def first_report():
-    all_players_worlds = get_all_players_worlds()
-    all_players = all_players_worlds.query(f"world == '{get_world_id()}'  ")
-     
-    df_tabs_player_other_worlds =  all_players_worlds.query(f"world != '{get_world_id()}' ")
-    df_player_guild_history = get_player_guild_history()
+
+    all_players = get_all_players()
     df_ages = get_df_ages()
     df_guilds = get_guilds()
     df_recruters = get_df_recruters()
@@ -473,9 +504,9 @@ def first_report():
                 with tab2:
                     tabs_player_activity(get_player_activity(selected_player), selected_player)
                 with tab3:
-                    guild_history(df_player_guild_history, selected_player)
+                    guild_history(get_player_guild_history(selected_player), selected_player)
                 with tab4:
-                    tabs_player_other_worlds(df_tabs_player_other_worlds, selected_player)
+                    tabs_player_other_worlds(get_player_other_worlds(selected_player), selected_player)
 
 
 def run_reports():

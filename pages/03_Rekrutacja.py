@@ -12,7 +12,7 @@ dump_value = "-1z"
 st.session_state['textmsg']= dump_value
 
 @st.cache_data(ttl=0, experimental_allow_widgets=True,)
-def get_prospect_history():
+def get_prospect_history(player_id):
     sql_prospect_def = f'''SELECT 
                                             world
                                             , Guild_name
@@ -30,6 +30,7 @@ def get_prospect_history():
                                         WHERE
                                             world = '{get_world_id()}' 
                                             AND guildid = {get_guild_id()}
+                                            and playerId = {player_id}
                                             '''
     df_prospect_def = execute_query(sql_prospect_def,return_type="df")
     return df_prospect_def
@@ -127,7 +128,6 @@ def first_report():
     df_guilds = get_guilds()
     df_recruters = get_df_recruters()
     df_statuses = get_statuses()
-    df_prospect_def = get_prospect_history()
 
 
     def tabs_player_prospect(df_prospect_def, Player_id, df_selected_player, df_recruters, delta_number_battles):
@@ -238,11 +238,11 @@ def first_report():
             # st.rerun()
         col1, col2 = st.columns([50, 5])
         get_prospect_history.clear()
-        df_prospect_def = get_prospect_history()
+        df_historical_data = get_prospect_history(Player_id)
         col1.markdown("#### Historia komunikacji z graczem ####")
         col2.button("Refresh", on_click=button_cb ) 
         
-        df_historical_data = df_prospect_def[df_prospect_def['playerId'] == Player_id]
+        # df_historical_data = df_prospect_def[df_prospect_def['playerId'] == Player_id]
         st.dataframe(df_historical_data, column_config={
                             "playerid":  st.column_config.TextColumn(label="Id Gracza"),
                             "Guild_name": st.column_config.TextColumn(label="Gildia"), 
@@ -465,7 +465,7 @@ def first_report():
                 st.divider()
                 if 'number' not in locals():
                     number = 0
-                tabs_player_prospect(df_prospect_def, selected_player, df_selected_player, df_recruters, number )
+                tabs_player_prospect(get_prospect_history(selected_player), selected_player, df_selected_player, df_recruters, number )
                 # st.divider()
                 tab1, tab2, tab3, tab4 = st.tabs(["Historia komunikacji z Graczem", "Historia Aktywności Gracza", "Historia Gildii", "Inne Światy"])
                 with tab1:

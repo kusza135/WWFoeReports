@@ -203,7 +203,7 @@ def first_report():
                     # st.write(int(selected_recruit_id), int(selected_status_id), inv_date, selected_next_communication_date, add_text)
                     if st.button(label="Zapisz zmiany", on_click=exec_sp, args=('p_prospect_history', get_world_id(), get_guild_id(), Player_id,  selected_status_id, selected_recruit_id, df_selected_player['ClanId'].iloc[0], inv_date, selected_next_communication_date, add_text), type="primary", disabled=brn_disabled):
                         selected_recruit_id = None
-                        get_prospect_history.clear()
+                        button_cb()
                         st.success("Zmiany wprowadzone")
                         st.rerun()
                         
@@ -230,10 +230,11 @@ def first_report():
         finally:
             conn.close()
 
+    def button_cb():
+        get_prospect_history.clear()
+        st.cache_data.clear()
+
     def prospect_history(Player_id):
-        def button_cb():
-            get_prospect_history.clear()
-            st.cache_data.clear()
             # st.rerun()
         col1, col2 = st.columns([50, 5])
         get_prospect_history.clear()

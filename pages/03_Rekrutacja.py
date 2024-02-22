@@ -11,11 +11,12 @@ import time
 dump_value = "-1z"
 st.session_state['textmsg']= dump_value
 
-@st.cache_data(ttl=0, experimental_allow_widgets=True,)
-def get_prospect_history(player_id):
+@st.cache_data(ttl=0, experimental_allow_widgets=True)
+def get_prospect_history():
     sql_prospect_def = f'''SELECT 
                                             world
                                             , Guild_name
+                                            , 'True' As Prospect
                                             , playerId
                                             , status_id
                                             , status_Name
@@ -30,7 +31,6 @@ def get_prospect_history(player_id):
                                         WHERE
                                             world = '{get_world_id()}' 
                                             AND guildid = {get_guild_id()}
-                                            and playerId = {player_id}
                                             '''
     df_prospect_def = execute_query(sql_prospect_def,return_type="df")
     return df_prospect_def
@@ -51,11 +51,8 @@ def get_all_players():
                 , Age_PL "Epoka"
                 , pointsDif "Zdobyte punkty (wczoraj)"
                 , battlesDif "Walki (wczoraj)"
-                , prospect as Prospect
                 , avg_last_battles
                 , avg_last_points
-                , status_Name as "Status"
-                , notes
                 , valid_to
             FROM V_all_players
             WHERE
@@ -151,15 +148,24 @@ def get_statuses():
     df_statuses = execute_query(f'''SELECT  status_id, status_Name FROM t_statuses WHERE module_name = 'PROSPECT' ''',return_type="df")
     return df_statuses
 
+@st.cache_data(ttl=0, experimental_allow_widgets=True)
+def get_all_players_from_raw(all_players_raw, prospects):
+    prospects_only_last_rows = prospects.merge(prospects.groupby(['playerId'])['last_change_date'].max(), on=['playerId', 'last_change_date'])[["playerId", "Prospect","status_Name"]]
+    all_players_raw = all_players_raw.merge(prospects_only_last_rows, on='playerId', how='left', indicator=True)
+    all_players_raw.rename(columns = {'status_Name':'Status'}, inplace = True) 
+    # st.write(all_players_raw)
+    return all_players_raw
+    
 
 def first_report():
 
-    all_players = get_all_players()
+    all_players_raw = get_all_players()
     df_ages = get_df_ages()
     df_guilds = get_guilds()
     df_recruters = get_df_recruters()
     df_statuses = get_statuses()
 
+    all_players = get_all_players_from_raw(all_players_raw, get_prospect_history())
 
     def tabs_player_prospect(df_prospect_def, Player_id, df_selected_player, df_recruters, delta_number_battles):
         
@@ -168,8 +174,6 @@ def first_report():
                 if item == current_value:
                     return index
             return None
-
-            
         
         df_historical_data = df_prospect_def[df_prospect_def['playerId'] == Player_id]
         df_active_row = df_historical_data[df_historical_data['last_change_date'] == df_historical_data["last_change_date"].max()]
@@ -242,8 +246,8 @@ def first_report():
         
     def exec_sp(sp_name, p_world,  p_guildid,  p_playerId, p_status_id,  p_recriterid,  p_playerGuildId = None, p_invitation_date = None,  p_future_invitation_date = None,  p_notes= None):
         con = create_engine()
-        if p_playerGuildId is None:
-            p_playerGuildId = ''
+        if p_playerGuildId != p_playerGuildId:
+            p_playerGuildId = 0
         if p_invitation_date is None:
             p_invitation_date = ''
         if p_future_invitation_date is None:
@@ -263,13 +267,16 @@ def first_report():
 
     def button_cb():
         get_prospect_history.clear()
+        get_all_players_from_raw.clear()
+        # dataframe_with_selections.clear()
         st.cache_data.clear()
 
     def prospect_history(Player_id):
             # st.rerun()
         col1, col2 = st.columns([50, 5])
         get_prospect_history.clear()
-        df_historical_data = get_prospect_history(Player_id)
+        df_prospect_def = get_prospect_history()
+        df_historical_data = df_prospect_def[df_prospect_def['playerId'] == Player_id]
         col1.markdown("#### Historia komunikacji z graczem ####")
         col2.button("Refresh", on_click=button_cb ) 
         
@@ -402,8 +409,9 @@ def first_report():
                 , column_config={"playerId" : None}
                 )
 
-        
+    @st.cache_data(ttl=0, experimental_allow_widgets=True)
     def dataframe_with_selections(df):
+        
         df_with_selections = df.copy()
         df_with_selections.insert(0, "Select", False)
 
@@ -415,15 +423,15 @@ def first_report():
             column_config={
                             "Select": st.column_config.CheckboxColumn(required=True), 
                             "Player_link":  st.column_config.LinkColumn(label="Player_link", display_text="ScoreDB link"), 
-                        "Prospect": st.column_config.CheckboxColumn(default=False), 
-                        "world" : None,
-                        "notes": None, 
-                        "avg_last_battles": None, 
-                        "avg_last_points": None, 
-                        "playerId" : None,
-                        "ClanId" : None, 
-                        "valid_to": None, 
-                        "world_name" : None
+                            "Prospect": st.column_config.CheckboxColumn(default=False, disabled=True), 
+                            "world" : None,
+                            "avg_last_battles": None, 
+                            "avg_last_points": None, 
+                            "playerId" : None,
+                            "ClanId" : None, 
+                            "_merge": None,
+                            "valid_to": None, 
+                            "world_name" : None
                         },
             disabled=( "Ranking", "Gracz", "Player_link", "Gildia", "Punty Rankingowe", "Wygrane Bitwy", "Epoka", "Zdobyte punkty (wczoraj)", "Walki (wczoraj)")
         )
@@ -496,7 +504,7 @@ def first_report():
                 st.divider()
                 if 'number' not in locals():
                     number = 0
-                tabs_player_prospect(get_prospect_history(selected_player), selected_player, df_selected_player, df_recruters, number )
+                tabs_player_prospect(get_prospect_history(), selected_player, df_selected_player, df_recruters, number )
                 # st.divider()
                 tab1, tab2, tab3, tab4 = st.tabs(["Historia komunikacji z Graczem", "Historia Aktywności Gracza", "Historia Gildii", "Inne Światy"])
                 with tab1:

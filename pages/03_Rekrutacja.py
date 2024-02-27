@@ -49,8 +49,8 @@ def get_all_players():
                 , points "Punty Rankingowe"
                 , battles "Wygrane Bitwy"
                 , Age_PL "Epoka"
-                , pointsDif "Zdobyte punkty (wczoraj)"
-                , battlesDif "Walki (wczoraj)"
+                , pointsDif
+                , battlesDif
                 , avg_last_battles
                 , avg_last_points
                 , valid_to
@@ -423,9 +423,11 @@ def first_report():
             column_config={
                             "Select": st.column_config.CheckboxColumn(required=True), 
                             "Player_link":  st.column_config.LinkColumn(label="Player_link", display_text="ScoreDB link"), 
+                            "avg_last_battles": st.column_config.NumberColumn(label="Średnia ilość walk (30 dni)"), 
                             "Prospect": st.column_config.CheckboxColumn(default=False, disabled=True), 
                             "world" : None,
-                            "avg_last_battles": None, 
+                            "battlesDif": None, 
+                            "pointsDif": None, 
                             "avg_last_points": None, 
                             "playerId" : None,
                             "ClanId" : None, 
@@ -433,7 +435,7 @@ def first_report():
                             "valid_to": None, 
                             "world_name" : None
                         },
-            disabled=( "Ranking", "Gracz", "Player_link", "Gildia", "Punty Rankingowe", "Wygrane Bitwy", "Epoka", "Zdobyte punkty (wczoraj)", "Walki (wczoraj)")
+            disabled=( "Ranking", "Gracz", "Player_link", "Gildia", "Punty Rankingowe", "Wygrane Bitwy", "Epoka")
         )
         selected_player= ""
         # Filter the dataframe using the temporary column, then drop the column

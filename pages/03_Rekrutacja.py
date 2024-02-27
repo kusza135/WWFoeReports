@@ -79,11 +79,8 @@ def get_player_other_worlds(Player_id):
                 , Age_PL "Epoka"
                 , pointsDif "Zdobyte punkty (wczoraj)"
                 , battlesDif "Walki (wczoraj)"
-                , prospect as Prospect
                 , avg_last_battles
                 , avg_last_points
-                , status_Name as "Status"
-                , notes
                 , valid_to
             FROM V_all_players
             WHERE 

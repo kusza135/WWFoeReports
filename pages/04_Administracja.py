@@ -14,7 +14,12 @@ def get_index_func(LOV, current_value):
         if item == current_value:
             return index
     return None
-   
+ 
+@st.cache_data(ttl=0, experimental_allow_widgets=True)
+def all_logs_2_df():
+    df = execute_query('SELECT CAST(load_date as CHAR(10)) LOAD_DATE, SP_NAME, START_DATE, END_DATE, TIME_ELAPSED FROM t_sp_load_procedures_log', return_type="df")
+    return df
+  
 def exec_sp(sp_name, p_roleid, p_role_name, p_is_active ):
     con = create_engine()
     try:
@@ -59,10 +64,9 @@ def main():
     if username:
         # role = get_user_role_from_db(username)
         
-        if tools.login.check_user_role_permissions(username, 'ADMINISTRATION') == True:
-            tab1, tab2, tab3, tab4 = st.tabs(["Konto", "Role", "Rekrutacja", "Parametry"])
-        else:
-              tab1, tab2, tab3, tab4 = st.tabs(["Konto", "Role", "Rekrutacja", "Parametry"])
+        
+        tab1, tab2, tab3, tab4, tab5 = st.tabs(["Konto", "Role", "Rekrutacja", "Parametry", "Logs"])
+        
 
         with tab1.container():
             col1, col2, col3 = st.columns([50, 50, 10])
@@ -272,5 +276,30 @@ def main():
 
                 col2.dataframe(get_all_recruters, column_config={"Aktywny": st.column_config.CheckboxColumn(default=True)}, hide_index=True, use_container_width=True)
             
-
+        with tab5.container() as x:
+            
+            st.cache_data.clear()
+            all_logs= all_logs_2_df()
+            Report_Date_list = [ 
+                                row[0]
+                                for row in execute_query(
+                                    f'''select distinct 
+                        CAST(load_date as CHAR(10))|| CASE 
+                            WEEKDAY(load_date) 
+                            when 0 then '  (Poniedziałek)'
+                            when 1 then '  (Wtorek)'
+                            when 2 then '  (Środa)'
+                            when 3 then '  (Czwartek)'
+                            when 4 then '  (Piątek)'
+                            when 5 then '  (Sobota)'
+                            when 6 then '  (Niedziela)'
+                        END report_date
+                        from t_sp_load_procedures_log 
+                        order by 1''', return_type="list"
+                                )
+                            ]
+            while  len(Report_Date_list)<2:
+                Report_Date_list.append("_empty")
+            date_filter = st.select_slider(label="Select a report date", options=Report_Date_list, value=max(Report_Date_list), label_visibility="hidden")
+            st.dataframe(all_logs[all_logs['LOAD_DATE'] == date_filter[:10]], use_container_width= True, hide_index=True)
 main()

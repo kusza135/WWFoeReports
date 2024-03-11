@@ -339,39 +339,50 @@ def first_report():
         st.info("Dane dostępne od 2024-02-01 ")
         ops = st.radio(label="Wybierz metryki:", options=['Punty rankingowe', 'Liczba bitew', 'Różnica punktów rankingowych', 'Różnica bitew'], horizontal=True, index=3)
         # st.dataframe(tabs_player_activity)
-        pl_name = df_tabs_player_activity[df_tabs_player_activity['playerId'] == Player_id]["name"].iloc[0]
-        c= alt.Chart(df_tabs_player_activity[df_tabs_player_activity['playerId'] == Player_id]).mark_line(
-                                point=alt.OverlayMarkDef(filled=False, fill="white", size=50)
-                                        ).encode(
-                                            x=alt.X("Data_danych", title='Data danych'),
-                                            y=alt.Y(ops, title=ops)
-                                            # , xOffset="World:N"
-                                            , color='world:N'
-                                            , tooltip=ops
-                                        ).properties(
-                                                    title=f"Historia gry {pl_name} z ostatnich 30 dni"
-                                                    # width=alt.Step(400)  # controls width of bar.
-                                                )
+        coll1, coll2 = st.columns([5, 50])
+        
+        df_selected_player_activity = df_tabs_player_activity[df_tabs_player_activity['playerId'] == Player_id]
+        pl_name = df_selected_player_activity["name"].iloc[0]
+        with coll1:
+            st.markdown("**Wybierz Świat:**")
+            Worlds = df_selected_player_activity.world.sort_values().unique().tolist()
+            selected_worlds = []
+            for index, i in enumerate(Worlds):
+                if st.checkbox(label=i, value=True, key=f"Checkbx{index}"):
+                        selected_worlds.append(i)
+        with coll2:
+            c= alt.Chart(df_selected_player_activity[df_selected_player_activity['world'].isin(selected_worlds)]).mark_line(
+                                    point=alt.OverlayMarkDef(filled=False, fill="white", size=50)
+                                            ).encode(
+                                                x=alt.X("Data_danych", title='Data danych'),
+                                                y=alt.Y(ops, title=ops)
+                                                # , xOffset="World:N"
+                                                , color='world:N'
+                                                , tooltip=ops
+                                            ).properties(
+                                                        title=f"Historia gry {pl_name} z ostatnich 30 dni"
+                                                        # width=alt.Step(400)  # controls width of bar.
+                                                    )
 
-        tick1 = alt.Chart(df_tabs_player_activity[df_tabs_player_activity['playerId'] == Player_id]).mark_tick(
-            color='purple',
-            thickness=2,
-            size=40 * 0.45,  # controls width of tick.
-        ).encode(
-            x="Data_danych",
-            y="GPCh"
-        ).properties(title="dzień GPCh")
-                                        
-        text = c.mark_text(
-            align='center'
-            , baseline='top'
-            , color="black"
-            , fontSize = 13
-            , dy=-30  # Nudges text to right so it doesn't appear on top of the bar
+            tick1 = alt.Chart(df_selected_player_activity[df_selected_player_activity['world'].isin(selected_worlds)]).mark_tick(
+                color='purple',
+                thickness=2,
+                size=40 * 0.45,  # controls width of tick.
             ).encode(
-                text=f"{ops}:Q",
-                )
-        st.altair_chart(c.interactive() + tick1 + text, use_container_width=True)    
+                x="Data_danych",
+                y="GPCh"
+            ).properties(title="dzień GPCh")
+                                            
+            text = c.mark_text(
+                align='center'
+                , baseline='top'
+                , color="black"
+                , fontSize = 13
+                , dy=-30  # Nudges text to right so it doesn't appear on top of the bar
+                ).encode(
+                    text=f"{ops}:Q",
+                    )
+            st.altair_chart(c.interactive() + tick1 + text, use_container_width=True)    
         
     def tabs_player_other_worlds(df_tabs_player_other_worlds, Player_id):
         st.dataframe(df_tabs_player_other_worlds[df_tabs_player_other_worlds['playerId'] == Player_id],  column_config={

@@ -301,5 +301,5 @@ def main():
             while  len(Report_Date_list)<2:
                 Report_Date_list.append("_empty")
             date_filter = st.select_slider(label="Select a report date", options=Report_Date_list, value=max(Report_Date_list), label_visibility="hidden")
-            st.dataframe(all_logs[all_logs['LOAD_DATE'] == date_filter[:10]], use_container_width= True, hide_index=True)
+            st.dataframe(all_logs[all_logs['LOAD_DATE'] == date_filter[:10]].sort_values(by='START_DATE', ascending=True), use_container_width= True, hide_index=True)
 main()

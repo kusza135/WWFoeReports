@@ -315,7 +315,7 @@ def list_notes_for_users(filters):
             player_name = guild_hist_sql['Player_name'][names]
             notka = guild_hist_sql['notka'][names]
             
-            st.warning(f'Gracz **{player_name}** ma zapisaną notatkę: {notka}', icon='⚠️')
+            st.warning(f'Gracz **{player_name}** ma zapisaną notatkę: \n\n{notka}\n', icon='⚠️')
          
 
    

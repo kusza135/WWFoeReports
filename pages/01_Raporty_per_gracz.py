@@ -300,20 +300,28 @@ def guild_player_history(filters):
         st.dataframe(guild_hist_sql[guild_hist_sql['player_id'].isin(filters)], use_container_width=True, hide_index=True)
      
 def list_notes_for_users(filters):
-        query = f'''select 
-                MAX(a.player_id) as player_id
-                , a.name as "Player_name"
-                , notka
-            from V_GUILD_PLAYERS a
-            WHERE 
-                notka is not null
-            GROUP BY a.name, notka
+        query = f'''
+            SELECT 
+                * 
+            FROM
+            ( 
+                SELECT 
+                    a.player_id
+                    , a.name as "Player_name"
+                    , notka
+                    , ROW_NUMBER() OVER (PARTITION BY a.player_id ORDER BY VALID_TO DESC ) RN
+                FROM V_GUILD_PLAYERS a
+                WHERE 
+                    notka is not null
+            ) x
+            WHERE RN = 1
             '''
         guild_hist_sql_tmp = execute_query(query, return_type="df")
         guild_hist_sql = guild_hist_sql_tmp[guild_hist_sql_tmp['player_id'].isin(filters)]
+        
         for names in range(len(guild_hist_sql)):
-            player_name = guild_hist_sql['Player_name'][names]
-            notka = guild_hist_sql['notka'][names]
+            player_name = guild_hist_sql['Player_name'].iloc[names]
+            notka = guild_hist_sql['notka'].iloc[names]
             
             st.warning(f'Gracz **{player_name}** ma zapisaną notatkę: \n\n{notka}\n', icon='⚠️')
          

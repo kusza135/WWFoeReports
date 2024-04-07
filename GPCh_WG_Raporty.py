@@ -2,7 +2,7 @@ import streamlit as st
 import altair as alt
 # from streamlit_extras.stylable_container import stylable_container
 from PIL import Image
-from tools.streamlit_tools import execute_query, page_header
+from tools.streamlit_tools import execute_query, page_header, get_world_id, get_guild_id, get_guild_name
 from tools.login import login, check_user_role_permissions
 import os
 
@@ -51,6 +51,8 @@ order by 1''', return_type="list"
         wg_reports(date_filter)
         st.text("\n\n\n")
         gpch_reports(date_filter)
+        st.text("\n\n\n")
+        lottery_top_gpch_players(date_filter)
         st.text("\n\n\n")
         guild_stats(date_filter)
 
@@ -268,7 +270,91 @@ def check_nick_name_change():
         st.warning('Poniżej gracze którzy zmienili nick', icon="⚠️")
         st.dataframe(qry, hide_index=True, use_container_width=True)
 
+
+
+
+@st.cache_data(ttl=0, experimental_allow_widgets=True)
+def lottery_top_gpch_players(date_filter):
+    list_winners_sql = f'''SELECT  
+		world
+		, ClanId
+		, load_date
+		, player_id
+        , name
+    FROM 
+        V_GPC_LOTTERY
+    WHERE 
+        world = '{get_world_id()}'
+        AND ClanId = {get_guild_id()}
+        AND load_date = '{date_filter[0:10]}' 
+    '''
+    gpch_result_all = execute_query(
+        f'''select 
+                report_date
+                , player_id
+                , name as "Player_name"
+                , Age_PL as "Epoka"
+                , GPCH_DATE_OF_DAY as "GPCH_day"
+                , "RANK"
+                , battlesWon
+                , negotiationsWon
+                , score AS "Wygrane_bitwy"
+                , "Forecast"
+from V_GPCH where report_date = '{date_filter}' 
+''',
+        return_type="df",
+    )
+    
+    check_winners = execute_query(list_winners_sql, return_type="df")
+    if not (gpch_result_all.iloc[0]['GPCH_day'] <12 and gpch_result_all.iloc[0]['GPCH_day']>0):
+        if check_winners.empty: 
         
+            if 'clicked' not in st.session_state:
+                st.session_state.clicked = False
+            def click_button():
+                st.session_state.clicked = True
+
+            st.subheader('Losowanie graczy  \n  \n', anchor='gpch', divider='rainbow')
+                
+            st.markdown("""
+                <style>
+                    .st-dd, .stTextInput > div > div > input, .stButton > button, .stSlider > div {
+                        vertical-align: middle !important;
+                        font-family: 'Inter';
+                        font-size: 40px;
+                        font-weight: 500;
+                    }
+                    .stTextInput > div > div > input {
+                        margin-top: 5px !important;
+                    }
+                </style>
+                """, unsafe_allow_html=True)
+
+            col1, col2, col3, col4 = st.columns([40, 40, 20, 40])
+
+            with st.expander(label="Ustawienia losowania"):
+                col1, col2, col3, col4 = st.columns([40, 40, 20, 40])
+                num_of_lottery_players = col1.number_input(label="Wpisz Top osób biorących udział w losowaniu", step=1, value=30,  min_value=1, max_value=len(gpch_result_all))
+                num_of_winners = col2.number_input(label="Wpisz ile osób może wygrać w losowaniu", step=1,  min_value=1, value=5, max_value=num_of_lottery_players)
+            gpch_result_selected = gpch_result_all[gpch_result_all["Wygrane_bitwy"].isin( gpch_result_all["Wygrane_bitwy"].nlargest(n=num_of_lottery_players))]
+            st.button(label="Wylosuj zwyciężców", type="primary", on_click=click_button())
+            if st.session_state.clicked:
+                winners= gpch_result_selected.sample(n=num_of_winners)
+                for ind in winners.index:
+                    pl_id = winners["player_id"][ind]
+                    execute_query(f"call p_gpc_lottery('{get_world_id()}', {get_guild_id()}, '{date_filter[0:10]}', {pl_id})", return_type="df")
+                st.cache_data.clear()
+                check_winners = execute_query(list_winners_sql, return_type="df")
+        else:
+            loterry_msg = '''Gratulujemy poniższym graczom za wspólną zabawę:\n\n'''   
+            for ind in check_winners.index:
+                    loterry_msg += f'''\t{check_winners["name"][ind]}\n'''
+
+            loterry_msg += f'''\n\nDziękujemy, że jesteście z Nami i wspieracie {get_guild_name()}.'''
+
+            st.code(loterry_msg)
+
+
 if __name__ == '__main__':    
   
     st.set_page_config(

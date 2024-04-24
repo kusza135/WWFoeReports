@@ -5,6 +5,7 @@ from PIL import Image
 from tools.streamlit_tools import execute_query, page_header, get_world_id, get_guild_id, get_guild_name
 from tools.login import login, check_user_role_permissions
 import os
+import numpy as np
 
 
 path = os.path.dirname(__file__)
@@ -172,6 +173,28 @@ def list_winners(date_filter):
     return list_winners_sql
 
 
+@st.cache_data(ttl=0, experimental_allow_widgets=True)
+def get_GPCH_leader(date_filter):
+    gpc_leader_sql = execute_query(f'''SELECT 
+	report_date
+	, playerId
+	, Foe_WW.V_GPCH.name
+	,  max(score) player_score
+FROM 
+	Foe_WW.t_all_players tap
+INNER JOIN 
+	Foe_WW.V_GPCH
+	on playerId = player_id 
+WHERE world  = '{get_world_id()}'
+AND report_date  = '{date_filter[0:10]}' 
+and valid_from  between DATE_ADD(report_date ,INTERVAL case when GPCH_DATE_OF_DAY=0 then -11 else -GPCH_DATE_OF_DAY end  DAY) and report_date
+GROUP BY 1, 2, 3
+having count(DISTINCT era)=1
+ORDER BY 4 DESC 
+limit 1
+    ''', return_type="df")
+    return gpc_leader_sql
+
 
 def run_reports():
     check_nick_name_change()
@@ -191,6 +214,9 @@ def run_reports():
         wg_reports(date_filter)
         st.text("\n\n\n")
         gpch_reports(date_filter)
+
+        st.text("\n\n\n")
+        new_approach(date_filter)
         st.text("\n\n\n")
         lottery_top_gpch_players(date_filter)
         st.text("\n\n\n")
@@ -307,6 +333,54 @@ def guild_stats(date_filter):
     st.subheader('Statystyki Gildii', anchor='guild', divider='rainbow')
     guild_stats_sql = list_guild_stats(date_filter)
     st.dataframe(guild_stats_sql, use_container_width=True, hide_index=True)
+
+
+def new_approach(date_filter):
+    def highlight_survived(s):
+        return ['background-color: #ebd8d8']*len(s) if s.score_boolean ==False else ['background-color: #f5faf2']*len(s)
+
+    with st.expander(label="Parametry"):
+        col1, col2, col3, col4 = st.columns(4)
+        perc_ind = (col1.number_input(label="Procent od lidera", value=5, min_value=1, max_value=100))/100
+        player_activity = col2.radio(label="Gracze", options=['Wszyscy', 'Aktywni', 'Nieaktywni'], index=2)
+    gpc_leader = get_GPCH_leader(date_filter)
+    st.markdown(f"Leaderem GPCH był **{gpc_leader['name'].iloc[0]}** z wynikiem **{gpc_leader['player_score'].iloc[0]}** walk")
+
+    gpc_results = list_gpch_result_all(date_filter)
+    gpc_results['score_boolean'] = np.where(gpc_results['Wygrane_bitwy']< gpc_leader['player_score'].iloc[0]*perc_ind, False, True)
+
+    if player_activity == 'Aktywni':
+        gpc_results = gpc_results[gpc_results['score_boolean']==True]
+    elif player_activity == 'Nieaktywni':
+        gpc_results = gpc_results[gpc_results['score_boolean']==False]
+    elif player_activity == 'Wszyscy':
+        None
+
+
+    st.dataframe(gpc_results.style.apply(highlight_survived, axis=1),column_config={
+                            "report_date": st.column_config.DateColumn(label="Data końca GPCh"), 
+                            "player_id": None, 
+                            "rank": st.column_config.NumberColumn(label="Ranking"), 
+                            "Player_name": st.column_config.TextColumn(label="Gracz"), 
+                            "Epoka" : st.column_config.TextColumn(label="Epoka"), 
+                            "GPCH_day" : None, 
+                            "battlesWon": None,
+                            "negotiationsWon": None,
+                            "forecast": None,
+                            "Wygrane_bitwy": st.column_config.NumberColumn(label="Wygrane Bitwy"), 
+                            "score_boolean": st.column_config.CheckboxColumn(label="Znacznik Aktywności")
+                        },
+                hide_index=True
+                , use_container_width=True)
+
+
+
+    # st.dataframe(gpc_results[gpc_results['score_boolean']==only_poor_activity].style.applymap(cooling_highlight, subset=['score_boolean']), hide_index=True)
+
+
+    # st.dataframe(gpc_results
+    #               .style.apply(cooling_highlight, axis=1))
+
 
 
 def check_nick_name_change():

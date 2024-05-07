@@ -271,6 +271,7 @@ def guild_player_history(filters):
             def add_note(player_id, note):
                 st.markdown(f"call p_notes({player_id},'{note}')")
                 execute_query(f"call p_notes({player_id},'{note}')", return_type="df")
+                st.toast("Dane zapisane", icon="✅")
             # st.markdown(
             #     """
             # <style>
@@ -356,17 +357,6 @@ def run_reports():
      
 if __name__ == '__main__': 
 
-    st.set_page_config(
-        page_title="WW Stats",
-        page_icon=".streamlit//logo.png",
-        layout="wide",
-        initial_sidebar_state="expanded",
-        menu_items={
-            'Get Help': 'http://www.google_com/',
-            'Report a Bug' : 'mailto:adamus01@gmail.com', 
-            'About': "# This apps may help to monitor guild health."
-        }
-    ) 
     page_header()
     if 'authenticator_status' not in st.session_state:
         st.session_state.authenticator_status = None

@@ -174,24 +174,43 @@ def list_winners(date_filter):
 
 
 @st.cache_data(ttl=0, experimental_allow_widgets=True)
-def get_GPCH_leader(date_filter):
-    gpc_leader_sql = execute_query(f'''SELECT 
+def get_GPCH_leader(date_filter, rank):
+    gpc_leader_sql = execute_query(f'''
+SELECT  
 	report_date
 	, playerId
-	, Foe_WW.V_GPCH.name
-	,  max(score) player_score
-FROM 
-	Foe_WW.t_all_players tap
-INNER JOIN 
-	Foe_WW.V_GPCH
-	on playerId = player_id 
-WHERE world  = '{get_world_id()}'
-AND report_date  = '{date_filter[0:10]}' 
-and valid_from  between DATE_ADD(report_date ,INTERVAL case when GPCH_DATE_OF_DAY=0 then -11 else -GPCH_DATE_OF_DAY end  DAY) and report_date
-GROUP BY 1, 2, 3
-having count(DISTINCT era)=1
-ORDER BY 4 DESC 
-limit 1
+	, name
+	, player_score
+	, RN                                  
+FROM
+    (                                   
+        SELECT 
+            report_date
+            , playerId
+            , name
+            , player_score
+            , ROW_NUMBER() OVER (PARTITION BY report_date ORDER BY player_score DESC) RN
+        FROM 
+        (
+            select 
+                report_date
+                , playerId
+                , Foe_WW.V_GPCH.name name 
+                ,  max(score) player_score
+        FROM 
+            Foe_WW.t_all_players tap
+        INNER JOIN 
+            Foe_WW.V_GPCH
+            on playerId = player_id 
+        WHERE world  = '{get_world_id()}'
+        AND report_date  = '{date_filter[0:10]}' 
+        and valid_from  between DATE_ADD(report_date ,INTERVAL case when GPCH_DATE_OF_DAY=0 then -11 else -GPCH_DATE_OF_DAY end  DAY) and report_date
+        GROUP BY 1, 2, 3
+        having count(DISTINCT era)=1
+    ) x
+) y 
+WHERE 
+	RN = {rank}
     ''', return_type="df")
     return gpc_leader_sql
 
@@ -337,25 +356,32 @@ def guild_stats(date_filter):
 
 def new_approach(date_filter):
     def highlight_survived(s):
-        return ['background-color: #ebd8d8']*len(s) if s.score_boolean ==False else ['background-color: #f5faf2']*len(s)
+        return ['background-color: #ebd8d8']*len(s) if s.score_1 ==False | s.score_2 ==False else ['background-color: #f5faf2']*len(s)
 
     with st.expander(label="Parametry"):
-        col1, col2, col3, col4 = st.columns(4)
-        perc_ind = (col1.number_input(label="Procent od lidera", value=5, min_value=1, max_value=100))/100
-        player_activity = col2.radio(label="Gracze", options=['Wszyscy', 'Aktywni', 'Nieaktywni'], index=2)
-    gpc_leader = get_GPCH_leader(date_filter)
-    st.markdown(f"Leaderem GPCH był **{gpc_leader['name'].iloc[0]}** z wynikiem **{gpc_leader['player_score'].iloc[0]}** walk")
+        col1, col2, col3, col4 = st.columns([15,15,25,50])
+        player_pos= (col1.number_input(label="Pozycja w tabeli", value=1, min_value=1, max_value=80)) 
+        perc_ind = (col2.number_input(label="Procent od wyniku", value=5, min_value=1, max_value=100))/100
+        player_pos2= (col1.number_input(label="Pozycja w tabeli", value=10, min_value=1, max_value=80)) 
+        perc_ind2 = (col2.number_input(label="Procent od wyniku", value=10, min_value=1, max_value=100))/100
+        player_activity = col3.radio(label="Gracze", options=['Wszyscy', 'Aktywni', 'Nieaktywni'], index=2)
+    gpc_leader = get_GPCH_leader(date_filter, player_pos)
+    gpc_leader2 = get_GPCH_leader(date_filter, player_pos2)
+
+    st.markdown(f"TOP {player_pos} GPCH był **{gpc_leader['name'].iloc[0]}** z wynikiem **{gpc_leader['player_score'].iloc[0]}** walk")
+    st.markdown(f"TOP {player_pos2} GPCH był **{gpc_leader2['name'].iloc[0]}** z wynikiem **{gpc_leader2['player_score'].iloc[0]}** walk")
 
     gpc_results = list_gpch_result_all(date_filter)
-    gpc_results['score_boolean'] = np.where(gpc_results['Wygrane_bitwy']< gpc_leader['player_score'].iloc[0]*perc_ind, False, True)
+    gpc_results['score_1'] = np.where(gpc_results['Wygrane_bitwy']< gpc_leader['player_score'].iloc[0]*perc_ind, False, True)
+    gpc_results['score_2'] = np.where(gpc_results['Wygrane_bitwy']< gpc_leader2['player_score'].iloc[0]*perc_ind2, False, True)
 
     if player_activity == 'Aktywni':
-        gpc_results = gpc_results[gpc_results['score_boolean']==True]
+        gpc_results = gpc_results[(gpc_results['score_1']==True) | (gpc_results['score_2']==True)] 
     elif player_activity == 'Nieaktywni':
-        gpc_results = gpc_results[gpc_results['score_boolean']==False]
+        gpc_results = gpc_results[(gpc_results['score_1']==False) | (gpc_results['score_2']==False)] 
     elif player_activity == 'Wszyscy':
         None
-
+    
 
     st.dataframe(gpc_results.style.apply(highlight_survived, axis=1),column_config={
                             "report_date": st.column_config.DateColumn(label="Data końca GPCh"), 
@@ -368,14 +394,15 @@ def new_approach(date_filter):
                             "negotiationsWon": None,
                             "forecast": None,
                             "Wygrane_bitwy": st.column_config.NumberColumn(label="Wygrane Bitwy"), 
-                            "score_boolean": st.column_config.CheckboxColumn(label="Znacznik Aktywności")
+                            "score_1": st.column_config.CheckboxColumn(label=f"Znacznik Aktywności - {gpc_leader['name'].iloc[0]}"),
+                            "score_2": st.column_config.CheckboxColumn(label=f"Znacznik Aktywności - {gpc_leader2['name'].iloc[0]}")
                         },
                 hide_index=True
                 , use_container_width=True)
 
 
 
-    # st.dataframe(gpc_results[gpc_results['score_boolean']==only_poor_activity].style.applymap(cooling_highlight, subset=['score_boolean']), hide_index=True)
+    # st.dataframe(gpc_results[gpc_results['score_boolean']==only_poor_activity].style.applymap(cooling_highlight, subset=['score_1', 'score_2']), hide_index=True)
 
 
     # st.dataframe(gpc_results
@@ -446,17 +473,6 @@ def lottery_top_gpch_players(date_filter):
 
 if __name__ == '__main__':    
   
-    st.set_page_config(
-        page_title="WW Stats",
-        page_icon=".streamlit//logo.png",
-        layout="wide",
-        initial_sidebar_state="expanded",
-        menu_items={
-            'Get Help': 'http://www.google_com/',
-            'Report a Bug' : 'mailto:adamus01@gmail.com', 
-            'About': "# This apps may help to monitor guild health."
-        }
-    ) 
     page_header()
     if 'authenticator_status' not in st.session_state:
         st.session_state.authenticator_status = None

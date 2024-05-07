@@ -116,8 +116,9 @@ def change_text(type, msg):
         sql = f"call p_change_tips('{type}','{msg}')"
         # st.write(sql)
         execute_query(sql, return_type="df")
+        st.toast("Dane zapisane", icon="✅")
         st.cache_data.clear()
-        st.cache_resource.clear()
+
     
 def new_message():
     v_type = st.text_input(label="Krótki opis komunikatu")
@@ -137,17 +138,6 @@ def run_reports():
 
         
 if __name__ == '__main__':
-    st.set_page_config(
-        page_title="WW Stats",
-        page_icon=".streamlit//logo.png",
-        layout="wide",
-        initial_sidebar_state="expanded",
-        menu_items={
-            'Get Help': 'http://www.google_com/',
-            'Report a Bug' : 'mailto:adamus01@gmail.com', 
-            'About': "# This apps may help to monitor guild health."
-        }
-    ) 
     page_header()
     authenticator, users, username  = login()
     if username:

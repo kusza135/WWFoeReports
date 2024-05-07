@@ -202,17 +202,6 @@ def run_loads(Load_Method, guildPlayers_data, wg_data, gpch_data, vdate):
         st.session_state.pop(f"{Load_Method}_{gpch}")
 
 def main():    
-    st.set_page_config(
-        page_title="WW Stats",
-        page_icon=".streamlit//logo.png",
-        layout="wide",
-        initial_sidebar_state="expanded",
-        menu_items={
-            'Get Help': 'http://www.google_com/',
-            'Report a Bug' : 'mailto:adamus01@gmail.com', 
-            'About': "# This apps may help to monitor guild health."
-        }
-    )    
     page_header()
 
     authenticator, users, username  = login()

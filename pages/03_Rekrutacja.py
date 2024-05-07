@@ -236,7 +236,7 @@ def first_report():
                     if st.button(label="Zapisz zmiany", on_click=exec_sp, args=('p_prospect_history', get_world_id(), get_guild_id(), Player_id,  selected_status_id, selected_recruit_id, df_selected_player['ClanId'].iloc[0], inv_date, selected_next_communication_date, add_text), type="primary", disabled=brn_disabled):
                         selected_recruit_id = None
                         button_cb()
-                        st.success("Zmiany wprowadzone")
+                        st.toast("Zmiany wprowadzone", icon="✅")
                         st.rerun()
                         
 
@@ -263,13 +263,10 @@ def first_report():
             conn.close()
 
     def button_cb():
-        get_prospect_history.clear()
         get_all_players_from_raw.clear()
-        # dataframe_with_selections.clear()
-        st.cache_data.clear()
+        get_prospect_history.clear()
 
     def prospect_history(Player_id):
-            # st.rerun()
         col1, col2 = st.columns([50, 5])
         get_prospect_history.clear()
         df_prospect_def = get_prospect_history()
@@ -533,17 +530,6 @@ def run_reports():
 
         
 if __name__ == '__main__':
-    st.set_page_config(
-        page_title="WW Stats",
-        page_icon=".streamlit//logo.png",
-        layout="wide",
-        initial_sidebar_state="expanded",
-        menu_items={
-            'Get Help': 'http://www.google_com/',
-            'Report a Bug' : 'mailto:adamus01@gmail.com', 
-            'About': "# This apps may help to monitor guild health."
-        }
-    ) 
     page_header()
     if 'authenticator_status' not in st.session_state:
         st.session_state.authenticator_status = None

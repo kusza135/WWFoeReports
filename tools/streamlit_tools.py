@@ -30,10 +30,23 @@ def last_refresh_date():
     text_var = execute_query(query=query, return_type="df")
     st.markdown(f"<h7 style='text-align: center; color: grey;'><center>Świat:<br><b>{get_world_name(get_world_id())}</b></center></h7>", unsafe_allow_html=True) 
     st.markdown(f"<h7 style='text-align: center; color: grey;'><center>Data ostatniego odświeżenia raportu WG/GPCh:<br><b>{str(text_var['last_update_date'].iloc[0])}</b></center></h7>", unsafe_allow_html=True) 
+    if st.button(label="Refresh", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
     
     
 def page_header():
-
+    st.set_page_config(
+        page_title="WW Stats",
+        page_icon=".streamlit//logo.png",
+        layout="wide",
+        initial_sidebar_state="expanded",
+        menu_items={
+            'Get Help': 'http://www.google.com/',
+            'Report a Bug' : 'mailto:adamus01@gmail.com', 
+            'About': "# This apps may help to monitor guild health."
+        }
+    )
     colx, coly, colz = st.columns([5, 10, 4])
     image = Image.open(path + '/../.streamlit/Logo.png')
     with colz as x:

@@ -368,8 +368,8 @@ def new_approach(date_filter):
     gpc_leader = get_GPCH_leader(date_filter, player_pos)
     gpc_leader2 = get_GPCH_leader(date_filter, player_pos2)
 
-    st.markdown(f"TOP {player_pos} GPCH był **{gpc_leader['name'].iloc[0]}** z wynikiem **{gpc_leader['player_score'].iloc[0]}** walk")
-    st.markdown(f"TOP {player_pos2} GPCH był **{gpc_leader2['name'].iloc[0]}** z wynikiem **{gpc_leader2['player_score'].iloc[0]}** walk")
+    st.markdown(f"TOP {player_pos} GPCH był **{gpc_leader['name'].iloc[0]}** z wynikiem **{gpc_leader['player_score'].iloc[0]}** walk. Wynik do osiągnięcia wynosi **{int(round(gpc_leader['player_score'].iloc[0]*perc_ind, 0))}**")
+    st.markdown(f"TOP {player_pos2} GPCH był **{gpc_leader2['name'].iloc[0]}** z wynikiem **{gpc_leader2['player_score'].iloc[0]}** walk. Wynik do osiągnięcia wynosi **{int(round(gpc_leader2['player_score'].iloc[0]*perc_ind2, 0))}**")
 
     gpc_results = list_gpch_result_all(date_filter)
     gpc_results['score_1'] = np.where(gpc_results['Wygrane_bitwy']< gpc_leader['player_score'].iloc[0]*perc_ind, False, True)

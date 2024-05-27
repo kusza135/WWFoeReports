@@ -7,6 +7,7 @@ import pandas as pd
 from datetime import date, timedelta
 import numpy as np
 import time
+import json
 
 dump_value = "-1z"
 st.session_state['textmsg']= dump_value
@@ -435,16 +436,13 @@ def first_report():
     @st.cache_data(ttl=0, experimental_allow_widgets=True)
     def dataframe_with_selections(df):
         
-        df_with_selections = df.copy()
-        df_with_selections.insert(0, "Select", False)
-
-        # Get dataframe row-selections from user with st.data_editor
-        edited_df = st.data_editor(
-            df_with_selections,
+        edited_df = st.dataframe(
+            df,
             hide_index=True,
             use_container_width=True,
+            on_select = "rerun",
+            selection_mode="single-row",
             column_config={
-                            "Select": st.column_config.CheckboxColumn(required=True), 
                             "Player_link":  st.column_config.LinkColumn(label="Player_link", display_text="ScoreDB link"), 
                             "avg_last_battles": st.column_config.NumberColumn(label="Średnia ilość walk (30 dni)"), 
                             "Prospect": st.column_config.CheckboxColumn(default=False, disabled=True), 
@@ -458,17 +456,10 @@ def first_report():
                             "valid_to": None, 
                             "world_name" : None
                         },
-            disabled=( "Ranking", "Gracz", "Player_link", "Gildia", "Punty Rankingowe", "Wygrane Bitwy", "Epoka")
         )
-        selected_player= ""
-        # Filter the dataframe using the temporary column, then drop the column
-        selected_rows = edited_df[edited_df.Select]
-        if len(selected_rows)>1:
-            st.error("Zanzacz tylko jeden rekord")
-            return pd.DataFrame()
-        if not selected_rows.empty:
-            selected_player =selected_rows["playerId"].iloc[0]
-            return selected_rows[selected_rows['playerId'] == selected_player]
+
+        if edited_df.selection['rows']:
+            return df[df['playerId'] == df.iloc[edited_df.selection['rows'][0]]['playerId']]
     
     
     with st.expander(label="Filtuj ...", expanded=True):

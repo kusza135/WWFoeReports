@@ -41,9 +41,10 @@ def last_refresh_date():
     
     
 def page_header():
+    imagelogo = ".streamlit//foe_logo_max.jpg"
     st.set_page_config(
         page_title="WW Stats",
-        page_icon=".streamlit//logo.png",
+        page_icon=imagelogo,
         layout="wide",
         initial_sidebar_state="expanded",
         menu_items={
@@ -54,6 +55,9 @@ def page_header():
     )
     colx, coly, colz = st.columns([5, 10, 4])
     image = Image.open(path + '/../.streamlit/Logo.png')
+
+    st.logo(imagelogo, icon_image=imagelogo)
+
     with colz as x:
         last_refresh_date()
     colx.image(image, width=150)

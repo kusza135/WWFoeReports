@@ -20,6 +20,11 @@ def get_world_name(word_id):
             f'''SELECT world_name FROM V_worlds WHERE world  = '{get_world_id()}' ''', return_type="df",)
     return sql["world_name"].iloc[0]
 
+def get_worlds():
+    sql = execute_query(
+            f'''SELECT world, world_name FROM V_worlds  ''', return_type="df",)
+    return sql
+
 def get_guild_name():
     sql = execute_query(
             f'''SELECT name FROM V_all_guilds vag WHERE clanId  = {get_guild_id()} ''', return_type="df",)

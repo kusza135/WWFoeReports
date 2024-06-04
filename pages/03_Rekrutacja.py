@@ -249,7 +249,7 @@ def first_report():
                 if selected_recruit_id and selected_status_id: 
                     brn_disabled = False
                     # st.write(int(selected_recruit_id), int(selected_status_id), inv_date, selected_next_communication_date, add_text)
-                    if world != get_guild_id:
+                    if world != get_world_id():
                         st.error("Możesz rekrutować tylko w swoim świecie")
                     else:
                         if st.button(label="Zapisz zmiany", on_click=exec_sp, args=('p_prospect_history', get_world_id(), get_guild_id(), Player_id,  selected_status_id, selected_recruit_id, df_selected_player['ClanId'].iloc[0], inv_date, selected_next_communication_date, add_text), type="primary", disabled=brn_disabled):

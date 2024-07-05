@@ -394,8 +394,8 @@ def new_approach(date_filter):
                             "negotiationsWon": None,
                             "forecast": None,
                             "Wygrane_bitwy": st.column_config.NumberColumn(label="Wygrane Bitwy"), 
-                            "score_1": st.column_config.CheckboxColumn(label=f"Znacznik Aktywności - {gpc_leader['name'].iloc[0]}"),
-                            "score_2": st.column_config.CheckboxColumn(label=f"Znacznik Aktywności - {gpc_leader2['name'].iloc[0]}")
+                            "score_1": st.column_config.CheckboxColumn(label=f"Znacznik Aktywności - {gpc_leader['name'].iloc[0]} ({int(round(gpc_leader['player_score'].iloc[0]*perc_ind, 0))})"),
+                            "score_2": st.column_config.CheckboxColumn(label=f"Znacznik Aktywności - {gpc_leader2['name'].iloc[0]} ({int(round(gpc_leader2['player_score'].iloc[0]*perc_ind2, 0))})")
                         },
                 hide_index=True
                 , use_container_width=True)

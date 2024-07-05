@@ -19,9 +19,8 @@ def change_text(type, msg):
     execute_query(f"call p_change_tips('{type}','{msg}')", return_type="df")
 
 @st.cache_data(ttl=0, experimental_allow_widgets=True)
-def list_dates():
-    return execute_query(
-            f'''select distinct 
+def list_dates_wg(wg_cond):
+    return f'''select distinct 
 CAST(report_date as CHAR(10))|| CASE 
 	WEEKDAY(report_date) 
 	when 0 then '  (Poniedziałek)'
@@ -33,8 +32,41 @@ CAST(report_date as CHAR(10))|| CASE
 	when 6 then '  (Niedziela)'
 END report_date
 from V_WG 
-order by 1''', return_type="list"
-        )
+WHERE 
+    1=1
+    {wg_cond} '''
+
+@st.cache_data(ttl=0, experimental_allow_widgets=True)
+def list_dates_gpc(gpc_cond):
+    return  f'''select distinct 
+CAST(report_date as CHAR(10))|| CASE 
+	WEEKDAY(report_date) 
+	when 0 then '  (Poniedziałek)'
+	when 1 then '  (Wtorek)'
+	when 2 then '  (Środa)'
+	when 3 then '  (Czwartek)'
+	when 4 then '  (Piątek)'
+	when 5 then '  (Sobota)'
+	when 6 then '  (Niedziela)'
+END report_date
+from V_GPCH
+WHERE 
+    1=1
+    {gpc_cond} '''
+
+@st.cache_data(ttl=0, experimental_allow_widgets=True)
+def list_dates(wg_checkbox, gpc_checkbox):
+    wg_cond = ''
+    gpc_cond = ''
+    if wg_checkbox == True:
+        wg_cond = 'AND wg_date_of_day=0'
+        qry = list_dates_wg(wg_cond)
+    elif gpc_checkbox == True:
+        gpc_cond = 'AND GPCH_DATE_OF_DAY=0'
+        qry = list_dates_gpc(gpc_cond)
+    else:
+        qry = f'{list_dates_wg(wg_cond)} \n UNION \n {list_dates_gpc(gpc_cond)}\n order by 1'
+    return execute_query(qry, return_type="list")
 
 @st.cache_data(ttl=0, experimental_allow_widgets=True)
 def list_wg_result_all(date_filter):
@@ -175,7 +207,7 @@ def list_winners(date_filter):
 
 @st.cache_data(ttl=0, experimental_allow_widgets=True)
 def get_GPCH_leader(date_filter, rank):
-    gpc_leader_sql = execute_query(f'''
+    qry = f'''
 SELECT  
 	report_date
 	, playerId
@@ -211,7 +243,8 @@ FROM
 ) y 
 WHERE 
 	RN = {rank}
-    ''', return_type="df")
+    '''
+    gpc_leader_sql = execute_query(qry, return_type="df")
     return gpc_leader_sql
 
 
@@ -219,9 +252,12 @@ def run_reports():
     check_nick_name_change()
     
     st.subheader("  ##  Filtr (suwak) po dacie  ## ")
+    col1, col2, col3 = st.columns([15, 15, 50])
+    wg_checkbox = col1.checkbox(label="Tylko koniec WG", value=False)
+    gpc_checkbox = col2.checkbox(label="Tylko koniec GPC",value= False)
     Report_Date_list = [ 
          row[0]
-        for row in list_dates()
+        for row in list_dates(wg_checkbox, gpc_checkbox)
     ]
     while  len(Report_Date_list)<2:
         Report_Date_list.append("_empty")
@@ -365,40 +401,41 @@ def new_approach(date_filter):
         player_pos2= (col1.number_input(label="Pozycja w tabeli", value=10, min_value=1, max_value=80)) 
         perc_ind2 = (col2.number_input(label="Procent od wyniku", value=10, min_value=1, max_value=100))/100
         player_activity = col3.radio(label="Gracze", options=['Wszyscy', 'Aktywni', 'Nieaktywni'], index=2)
-    gpc_leader = get_GPCH_leader(date_filter, player_pos)
-    gpc_leader2 = get_GPCH_leader(date_filter, player_pos2)
+    if not get_GPCH_leader(date_filter, player_pos).empty:
+        gpc_leader = get_GPCH_leader(date_filter, player_pos)
+        gpc_leader2 = get_GPCH_leader(date_filter, player_pos2)
 
-    st.markdown(f"TOP {player_pos} GPCH był **{gpc_leader['name'].iloc[0]}** z wynikiem **{gpc_leader['player_score'].iloc[0]}** walk. Wynik do osiągnięcia wynosi **{int(round(gpc_leader['player_score'].iloc[0]*perc_ind, 0))}**")
-    st.markdown(f"TOP {player_pos2} GPCH był **{gpc_leader2['name'].iloc[0]}** z wynikiem **{gpc_leader2['player_score'].iloc[0]}** walk. Wynik do osiągnięcia wynosi **{int(round(gpc_leader2['player_score'].iloc[0]*perc_ind2, 0))}**")
+        st.markdown(f"TOP {player_pos} GPCH był **{gpc_leader['name'].iloc[0]}** z wynikiem **{gpc_leader['player_score'].iloc[0]}** walk. Wynik do osiągnięcia wynosi **{int(round(gpc_leader['player_score'].iloc[0]*perc_ind, 0))}**")
+        st.markdown(f"TOP {player_pos2} GPCH był **{gpc_leader2['name'].iloc[0]}** z wynikiem **{gpc_leader2['player_score'].iloc[0]}** walk. Wynik do osiągnięcia wynosi **{int(round(gpc_leader2['player_score'].iloc[0]*perc_ind2, 0))}**")
 
-    gpc_results = list_gpch_result_all(date_filter)
-    gpc_results['score_1'] = np.where(gpc_results['Wygrane_bitwy']< gpc_leader['player_score'].iloc[0]*perc_ind, False, True)
-    gpc_results['score_2'] = np.where(gpc_results['Wygrane_bitwy']< gpc_leader2['player_score'].iloc[0]*perc_ind2, False, True)
+        gpc_results = list_gpch_result_all(date_filter)
+        gpc_results['score_1'] = np.where(gpc_results['Wygrane_bitwy']< gpc_leader['player_score'].iloc[0]*perc_ind, False, True)
+        gpc_results['score_2'] = np.where(gpc_results['Wygrane_bitwy']< gpc_leader2['player_score'].iloc[0]*perc_ind2, False, True)
 
-    if player_activity == 'Aktywni':
-        gpc_results = gpc_results[(gpc_results['score_1']==True) | (gpc_results['score_2']==True)] 
-    elif player_activity == 'Nieaktywni':
-        gpc_results = gpc_results[(gpc_results['score_1']==False) | (gpc_results['score_2']==False)] 
-    elif player_activity == 'Wszyscy':
-        None
-    
+        if player_activity == 'Aktywni':
+            gpc_results = gpc_results[(gpc_results['score_1']==True) | (gpc_results['score_2']==True)] 
+        elif player_activity == 'Nieaktywni':
+            gpc_results = gpc_results[(gpc_results['score_1']==False) | (gpc_results['score_2']==False)] 
+        elif player_activity == 'Wszyscy':
+            None
+        
 
-    st.dataframe(gpc_results.style.apply(highlight_survived, axis=1),column_config={
-                            "report_date": st.column_config.DateColumn(label="Data końca GPCh"), 
-                            "player_id": None, 
-                            "rank": st.column_config.NumberColumn(label="Ranking"), 
-                            "Player_name": st.column_config.TextColumn(label="Gracz"), 
-                            "Epoka" : st.column_config.TextColumn(label="Epoka"), 
-                            "GPCH_day" : None, 
-                            "battlesWon": None,
-                            "negotiationsWon": None,
-                            "forecast": None,
-                            "Wygrane_bitwy": st.column_config.NumberColumn(label="Wygrane Bitwy"), 
-                            "score_1": st.column_config.CheckboxColumn(label=f"Znacznik Aktywności - {gpc_leader['name'].iloc[0]} ({int(round(gpc_leader['player_score'].iloc[0]*perc_ind, 0))})"),
-                            "score_2": st.column_config.CheckboxColumn(label=f"Znacznik Aktywności - {gpc_leader2['name'].iloc[0]} ({int(round(gpc_leader2['player_score'].iloc[0]*perc_ind2, 0))})")
-                        },
-                hide_index=True
-                , use_container_width=True)
+        st.dataframe(gpc_results.style.apply(highlight_survived, axis=1),column_config={
+                                "report_date": st.column_config.DateColumn(label="Data końca GPCh"), 
+                                "player_id": None, 
+                                "rank": st.column_config.NumberColumn(label="Ranking"), 
+                                "Player_name": st.column_config.TextColumn(label="Gracz"), 
+                                "Epoka" : st.column_config.TextColumn(label="Epoka"), 
+                                "GPCH_day" : None, 
+                                "battlesWon": None,
+                                "negotiationsWon": None,
+                                "forecast": None,
+                                "Wygrane_bitwy": st.column_config.NumberColumn(label="Wygrane Bitwy"), 
+                                "score_1": st.column_config.CheckboxColumn(label=f"Znacznik Aktywności - {gpc_leader['name'].iloc[0]} ({int(round(gpc_leader['player_score'].iloc[0]*perc_ind, 0))})"),
+                                "score_2": st.column_config.CheckboxColumn(label=f"Znacznik Aktywności - {gpc_leader2['name'].iloc[0]} ({int(round(gpc_leader2['player_score'].iloc[0]*perc_ind2, 0))})")
+                            },
+                    hide_index=True
+                    , use_container_width=True)
 
 
 

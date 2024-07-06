@@ -190,12 +190,13 @@ def run_loads(Load_Method, guildPlayers_data, wg_data, gpch_data, vdate):
             load_data_intoDB(con,'gpch', gpch_data, vdate)
             status.update(label=f"Zakończono {gpch}!", state='running', expanded=True)
             statistics.loc[len(statistics)] = [ f"{gpch}", len(gpch_data)]
+        st.cache_data.clear()
             
             
         run_last_update_date(con)
         status.update(label="Zakończono ładowanie danych!", state='complete', expanded=True)
         st.dataframe(statistics)
-        time.sleep(10)
+        time.sleep(5)
         status.update(label="Zakończono ładowanie danych!", state='complete', expanded=False)
         st.session_state.pop(f"{Load_Method}_{guildPlayers}")
         st.session_state.pop(f"{Load_Method}_{wg}")

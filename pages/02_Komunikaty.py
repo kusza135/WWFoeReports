@@ -37,9 +37,9 @@ def cheat_sheet():
         )  
     if not editable:
 
-            col1, col2, col3 = st.columns([ 5, 5, 5 ])
+            col1, col2, col3, col4 = st.columns([ 5, 5, 5, 5 ])
             for i in res.index:
-                
+                # st.write(i//4)                
                 if i//4==0:
                     with col1.container():
                         if st.button(res.iloc[i]['msg_type'], key=f'P1_{i}', help=None, on_click=None, type="secondary", disabled=False, use_container_width=True):
@@ -50,6 +50,10 @@ def cheat_sheet():
                             st.session_state['textmsg'] = res.iloc[i]['msg_type']
                 if i//4==2:
                     with col3.container():
+                        if st.button(res.iloc[i]['msg_type'], key=f'P1_{i}', help=None, on_click=None, type="secondary", disabled=False, use_container_width=True):
+                            st.session_state['textmsg'] = res.iloc[i]['msg_type']
+                if i//4==3:
+                    with col4.container():
                         if st.button(res.iloc[i]['msg_type'], key=f'P1_{i}', help=None, on_click=None, type="secondary", disabled=False, use_container_width=True):
                             st.session_state['textmsg'] = res.iloc[i]['msg_type']
 

@@ -12,7 +12,7 @@ import json
 dump_value = "-1z"
 st.session_state['textmsg']= dump_value
 
-@st.fragment
+@st.cache_data(ttl=0)
 def get_prospect_history():
     sql_prospect_def = f'''SELECT 
                                             world
@@ -35,7 +35,7 @@ def get_prospect_history():
                                             '''
     df_prospect_def = execute_query(sql_prospect_def,return_type="df")
     return df_prospect_def
-@st.cache_resource(ttl=14400, experimental_allow_widgets=True, show_spinner="Pobieranie danych (wszyscy gracze) ...")
+@st.cache_resource(ttl=14400, show_spinner="Pobieranie danych (wszyscy gracze) ...")
 def get_all_players(world):
     all_players_worlds = execute_query(
         f'''SELECT 
@@ -63,7 +63,7 @@ def get_all_players(world):
                     return_type="df",
                 )
     return all_players_worlds
-@st.cache_resource(ttl=14400, experimental_allow_widgets=True, show_spinner="Pobieranie danych (wszyscy gracze) ...")
+@st.cache_resource(ttl=14400, show_spinner="Pobieranie danych (wszyscy gracze) ...")
 def get_player_other_worlds(world, Player_id):
     df_tabs_player_other_worlds = execute_query(
         f'''SELECT 
@@ -92,7 +92,7 @@ def get_player_other_worlds(world, Player_id):
                     return_type="df",
                 )
     return df_tabs_player_other_worlds
-@st.cache_resource(ttl=28800, experimental_allow_widgets=True, show_spinner="Pobieranie danych (aktywność graczy) ...")
+@st.cache_resource(ttl=28800, show_spinner="Pobieranie danych (aktywność graczy) ...")
 def get_player_activity( Player_id):
     player_activity = execute_query(
     f'''SELECT 
@@ -114,7 +114,7 @@ def get_player_activity( Player_id):
                 return_type="df",
             )
     return player_activity
-@st.cache_resource(ttl=28800, experimental_allow_widgets=True, show_spinner="Pobieranie danych (historia gildii) ...")
+@st.cache_resource(ttl=28800, show_spinner="Pobieranie danych (historia gildii) ...")
 def get_player_guild_history(world, Player_id):
     df_player_guild_history = execute_query(
                 f'''SELECT  
@@ -129,25 +129,25 @@ def get_player_guild_history(world, Player_id):
                             return_type="df",
                         ) 
     return df_player_guild_history
-@st.cache_resource(ttl=28800, experimental_allow_widgets=True, show_spinner="Pobieranie danych (epoki) ...")
+@st.cache_resource(ttl=28800, show_spinner="Pobieranie danych (epoki) ...")
 def get_df_ages():
     df_ages = execute_query(f'''SELECT id, Age_PL  FROM t_ages WHERE valid_to = '3000-12-31' ORDER BY id ''',return_type="df")
     return df_ages
-@st.cache_resource(ttl=28800, experimental_allow_widgets=True, show_spinner="Pobieranie danych (wszystkie gildie) ...")
+@st.cache_resource(ttl=28800, show_spinner="Pobieranie danych (wszystkie gildie) ...")
 def get_guilds(world):
     df_guilds = execute_query(f'''SELECT clanId, name AS Gildia, members  FROM V_all_guilds WHERE world = '{world}' -- and clanId <> {get_guild_id()} ''',return_type="df")
     return df_guilds
 
-@st.cache_resource(ttl=0, experimental_allow_widgets=True, show_spinner="Pobieranie danych (rekruterzy) ...")
+@st.cache_resource(ttl=0, show_spinner="Pobieranie danych (rekruterzy) ...")
 def get_df_recruters():
     df_recruters = execute_query(f'''SELECT playerId, name, is_active FROM v_recruters WHERE world = '{get_world_id()}' and guildid = {get_guild_id()} ''',return_type="df")
     return df_recruters
-@st.cache_resource(ttl=0, experimental_allow_widgets=True, show_spinner="Pobieranie danych (statusy) ...")
+@st.cache_resource(ttl=0, show_spinner="Pobieranie danych (statusy) ...")
 def get_statuses():
     df_statuses = execute_query(f'''SELECT  status_id, status_Name FROM t_statuses WHERE module_name = 'PROSPECT' ''',return_type="df")
     return df_statuses
 
-@st.fragment
+@st.cache_data(ttl=0)
 def get_all_players_from_raw(all_players_raw, prospects):
     prospects_only_last_rows = prospects.merge(prospects.groupby(['playerId'])['last_change_date'].max(), on=['playerId', 'last_change_date'])[["playerId", "Prospect","status_Name"]]
     all_players_raw = all_players_raw.merge(prospects_only_last_rows, on='playerId', how='left', indicator=True)
@@ -433,7 +433,7 @@ def first_report():
                 , column_config={"playerId" : None}
                 )
 
-    @st.fragment
+    # @st.cache_data(ttl=0)
     def dataframe_with_selections(df):
         
         edited_df = st.dataframe(

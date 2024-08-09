@@ -15,7 +15,7 @@ def get_index_func(LOV, current_value):
             return index
     return None
  
-@st.cache_data(ttl=0, experimental_allow_widgets=True)
+@st.fragment
 def all_logs_2_df():
     df = execute_query('SELECT CAST(load_date as CHAR(10)) LOAD_DATE, SP_NAME, START_DATE, END_DATE, TIME_ELAPSED FROM t_sp_load_procedures_log', return_type="df")
     return df
@@ -62,6 +62,71 @@ WHERE
     AND ClanId =  {get_guild_id()}                    
 ''', return_type="df")
     return params
+
+def param_lottery_exceptions():
+    def p_gpc_lottery_exception_add(player_id):
+        query = f"call p_gpc_lottery_exception_add('{get_world_id()}',{get_guild_id()}, {player_id})"
+        execute_query(query, return_type="df")
+    def p_gpc_lottery_exception_delete(player_id):
+        query = f"call p_gpc_lottery_exception_delete('{get_world_id()}',{get_guild_id()}, {player_id})"
+        execute_query(query, return_type="df")
+
+    all_guild_users = execute_query(f''' 
+                            SELECT x.playerId, name
+                            FROM 
+                            (
+                                SELECT world, playerId FROM V_all_players WHERE VALID_TO  = '3000-12-31' AND world = '{get_world_id()}' AND ClanId = {get_guild_id()}
+                                UNION 
+                                SELECT world, player_Id FROM t_gpc_lottery_exceptions WHERE world = '{get_world_id()}' AND ClanId = {get_guild_id()}
+                            ) as x 
+                            LEFT JOIN 
+                                (SELECT world, playerId, name from V_all_players WHERE VALID_TO  = '3000-12-31' AND world = '{get_world_id()}') w
+                                    ON w.world = x.world
+                                    and w.playerId = x.playerId  ''', return_type="df")
+
+
+    get_all_exceptions = execute_query(f''' SELECT 
+                            player_id
+                            , name AS player_name
+                            FROM 
+                                t_gpc_lottery_exceptions ex
+                            INNER JOIN 
+                                V_all_players ap
+                                on ap.world  = ex.world
+                                AND ap.ClanId = ex.ClanId
+                                AND ex.Player_id = ap.playerId
+                            WHERE 
+                            ex.world = '{get_world_id()}'
+                            AND ex.ClanId =  {get_guild_id()} 
+                            and  ap.valid_to = '3000-12-31'
+                            ''', return_type="df")
+    col1, col2, col3 = st.columns([20,60,20])
+    with col2:
+        selected_player = col2.selectbox(label="Wybierz nazwę gracza", key="442", options=all_guild_users.name.sort_values().unique(),  placeholder="Rozwiń lub zacznij wpisywać", index=None)
+        with col2.container(border=True):
+            if selected_player is not None:
+                df2=all_guild_users.loc[all_guild_users['name'] == selected_player, 'playerId'].iloc[0]
+                col1, col2, col3 = col2.columns([15,10, 40])
+                # col1.text_input(label="Gracz", value=selected_player, disabled=True, label_visibility="hidden")
+                col2.write("\n\n\n")
+                if col2.button(label="Dodaj", key="441", type="primary", on_click=p_gpc_lottery_exception_add, args=([df2])):
+                    col2.cache_data.clear()
+                    col2.rerun()
+
+        stored_exceptions = st.dataframe(
+                                                get_all_exceptions
+                                                , hide_index=True
+                                                , on_select = "rerun"
+                                                , selection_mode="single-row"
+                                                , use_container_width=True
+                                            )
+        if stored_exceptions.selection['rows']:
+            player_id = get_all_exceptions.iloc[stored_exceptions.selection['rows'][0]]['player_id']
+            if col2.button(label="Usuń", key="443", type="primary", on_click=p_gpc_lottery_exception_delete, args=([player_id])):
+                        col2.cache_data.clear()
+                        col2.rerun()
+
+#     return df[df['playerId'] == df.iloc[edited_df.selection['rows'][0]]['playerId']]
 
 def main():
     
@@ -304,10 +369,12 @@ def main():
                 )
 
                 if edited_df.selection['rows']:
-                    c1, c2, c3,  = st.columns([10, 30, 50])
+                    c1, c2, c3,  = st.columns([20,60,20])
                     new_value = c2.text_input(label="Wpisz nową wartość", label_visibility="hidden", value=df[df['id_key'] == df.iloc[edited_df.selection['rows'][0]]['id_key']]['Param_Value'].iloc[0])
                     c2.button(label="Zmień")
-                #     return df[df['playerId'] == df.iloc[edited_df.selection['rows'][0]]['playerId']]
+
+                    if df.iloc[edited_df.selection['rows'][0]]['Param_Name'] == '"GPC Lottery module"':
+                        param_lottery_exceptions()
 
         with tab5.container() as x:
             

@@ -12,7 +12,7 @@ import json
 dump_value = "-1z"
 st.session_state['textmsg']= dump_value
 
-@st.cache_data(ttl=0, experimental_allow_widgets=True)
+@st.fragment
 def get_prospect_history():
     sql_prospect_def = f'''SELECT 
                                             world
@@ -147,7 +147,7 @@ def get_statuses():
     df_statuses = execute_query(f'''SELECT  status_id, status_Name FROM t_statuses WHERE module_name = 'PROSPECT' ''',return_type="df")
     return df_statuses
 
-@st.cache_data(ttl=0, experimental_allow_widgets=True)
+@st.fragment
 def get_all_players_from_raw(all_players_raw, prospects):
     prospects_only_last_rows = prospects.merge(prospects.groupby(['playerId'])['last_change_date'].max(), on=['playerId', 'last_change_date'])[["playerId", "Prospect","status_Name"]]
     all_players_raw = all_players_raw.merge(prospects_only_last_rows, on='playerId', how='left', indicator=True)
@@ -433,7 +433,7 @@ def first_report():
                 , column_config={"playerId" : None}
                 )
 
-    @st.cache_data(ttl=0, experimental_allow_widgets=True)
+    @st.fragment
     def dataframe_with_selections(df):
         
         edited_df = st.dataframe(

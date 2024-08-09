@@ -18,7 +18,7 @@ def get_text(type):
 def change_text(type, msg):
     execute_query(f"call p_change_tips('{type}','{msg}')", return_type="df")
 
-@st.cache_data(ttl=0, experimental_allow_widgets=True)
+@st.fragment
 def list_dates_wg(wg_cond):
     return f'''select distinct 
 CAST(report_date as CHAR(10))|| CASE 
@@ -36,7 +36,7 @@ WHERE
     1=1
     {wg_cond} '''
 
-@st.cache_data(ttl=0, experimental_allow_widgets=True)
+@st.fragment
 def list_dates_gpc(gpc_cond):
     return  f'''select distinct 
 CAST(report_date as CHAR(10))|| CASE 
@@ -54,7 +54,7 @@ WHERE
     1=1
     {gpc_cond} '''
 
-@st.cache_data(ttl=0, experimental_allow_widgets=True)
+@st.fragment
 def list_dates(wg_checkbox, gpc_checkbox):
     wg_cond = ''
     gpc_cond = ''
@@ -68,7 +68,7 @@ def list_dates(wg_checkbox, gpc_checkbox):
         qry = f'{list_dates_wg(wg_cond)} \n UNION \n {list_dates_gpc(gpc_cond)}\n order by 1'
     return execute_query(qry, return_type="list")
 
-@st.cache_data(ttl=0, experimental_allow_widgets=True)
+@st.fragment
 def list_wg_result_all(date_filter):
     wg_result_all = execute_query(
         f'''select 
@@ -86,7 +86,7 @@ from V_WG where report_date = '{date_filter}'
     )
     return wg_result_all
 
-@st.cache_data(ttl=0, experimental_allow_widgets=True)
+@st.fragment
 def list_wg_result_catch(date_filter):
     wg_result_catch = execute_query(
         f'''select 
@@ -105,7 +105,7 @@ AND solvedEncounters < "forecast"
     )
     return wg_result_catch
 
-@st.cache_data(ttl=0, experimental_allow_widgets=True)
+@st.fragment
 def list_gpch_result_all(date_filter):
     gpch_result_all = execute_query(
         f'''select 
@@ -125,7 +125,7 @@ from V_GPCH where report_date = '{date_filter}'
     )
     return gpch_result_all
 
-@st.cache_data(ttl=0, experimental_allow_widgets=True)
+@st.fragment
 def list_gpch_result_catch(date_filter):
     gpch_result_catch = execute_query(
         f'''select 
@@ -146,7 +146,7 @@ AND score < forecast
         return_type="df",
     )
 
-@st.cache_data(ttl=0, experimental_allow_widgets=True)
+@st.fragment
 def list_guild_stats(date_filter):
     guild_stats_sql = execute_query(
         f'''SELECT 
@@ -168,7 +168,7 @@ ORDER BY "RANK"
     )
     return guild_stats_sql
 
-@st.cache_data(ttl=0, experimental_allow_widgets=True)
+@st.fragment
 def list_change_nick_name():
     return execute_query(f'''SELECT 
                         old_name AS "Poprzedni nick"
@@ -187,7 +187,7 @@ def list_change_nick_name():
                         WHERE name <> old_name and old_name is not null
                         ''', return_type="df")
 
-@st.cache_data(ttl=0, experimental_allow_widgets=True)
+@st.fragment
 def list_winners(date_filter):
     list_winners_sql = execute_query(f'''SELECT  
 		world
@@ -205,7 +205,7 @@ def list_winners(date_filter):
     return list_winners_sql
 
 
-@st.cache_data(ttl=0, experimental_allow_widgets=True)
+@st.fragment
 def get_GPCH_leader(date_filter, rank):
     qry = f'''
 SELECT  
@@ -466,7 +466,7 @@ def check_nick_name_change():
 
 
 
-@st.cache_data(ttl=0, experimental_allow_widgets=True)
+@st.fragment
 def lottery_top_gpch_players(date_filter):
     gpch_result_all = list_gpch_result_all(date_filter)
     

@@ -1,4 +1,4 @@
 #.streamlit/config.toml
 [client]
-showWarningsDetails = false
-disableWidgetStateDuplicationWarning = true
+#showWarningsDetails = false
+#disableWidgetStateDuplicationWarning = true

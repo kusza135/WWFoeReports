@@ -46,6 +46,22 @@ def get_roles():
     and y.guildid = {get_guild_id()} ''', return_type="df")
     return roles
 
+def get_params_list():
+    params = execute_query(f''' SELECT 
+    id_key
+    , world
+    , ClanId
+    , json_extract(`Params`, '$.key') AS Param_Name
+    , json_extract(`Params`, '$.value') AS Param_Value
+    , Param_Desc
+    , last_update_date as Last_Update_date
+FROM 
+    t_params
+WHERE 
+    world = '{get_world_id()}'
+    AND ClanId =  {get_guild_id()}                    
+''', return_type="df")
+    return params
 
 def main():
     
@@ -266,6 +282,33 @@ def main():
 
                 col2.dataframe(get_all_recruters, column_config={"Aktywny": st.column_config.CheckboxColumn(default=True)}, hide_index=True, use_container_width=True)
             
+
+        with tab4.container() as x:
+            
+            if tools.login.check_user_role_permissions(username, 'ADMINISTRATION') == True:
+                df = get_params_list()
+                edited_df = st.dataframe(
+                df,
+                hide_index=True,
+                use_container_width=True,
+                on_select = "rerun",
+                selection_mode="single-row",
+                column_config={
+                                "last_update_date":  st.column_config.DatetimeColumn(label="Last_update_date"), 
+                                "Param_Name":  st.column_config.TextColumn(label="Param_Name"), 
+                                "world" : None,
+                                "id_key": None, 
+                                "ClanId" : None, 
+
+                            },
+                )
+
+                if edited_df.selection['rows']:
+                    c1, c2, c3,  = st.columns([10, 30, 50])
+                    new_value = c2.text_input(label="Wpisz nową wartość", label_visibility="hidden", value=df[df['id_key'] == df.iloc[edited_df.selection['rows'][0]]['id_key']]['Param_Value'].iloc[0])
+                    c2.button(label="Zmień")
+                #     return df[df['playerId'] == df.iloc[edited_df.selection['rows'][0]]['playerId']]
+
         with tab5.container() as x:
             
             st.cache_data.clear()

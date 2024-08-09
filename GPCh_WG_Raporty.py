@@ -247,6 +247,16 @@ WHERE
     gpc_leader_sql = execute_query(qry, return_type="df")
     return gpc_leader_sql
 
+def list_gpc_lottery_exceptions():
+    list_gpc_lottery_exceptions = execute_query(f'''SELECT  
+		player_id
+    FROM 
+        t_gpc_lottery_exceptions
+    WHERE 
+        world = '{get_world_id()}'
+        AND ClanId = {get_guild_id()}
+    ''', return_type="df")
+    return list_gpc_lottery_exceptions
 
 def run_reports():
     check_nick_name_change()
@@ -493,6 +503,8 @@ def lottery_top_gpch_players(date_filter):
             gpch_result_selected = gpch_result_all[gpch_result_all["Wygrane_bitwy"].isin( gpch_result_all["Wygrane_bitwy"].nlargest(n=num_of_lottery_players))]
             st.button(label="Wylosuj zwyciężców", type="primary", on_click=click_button())
             if st.session_state.clicked:
+                list_gpc_lottery_exc = list_gpc_lottery_exceptions()
+                gpch_result_selected = gpch_result_selected[~gpch_result_selected["player_id"].isin(list_gpc_lottery_exc["player_id"])] 
                 winners= gpch_result_selected.sample(n=num_of_winners)
                 for ind in winners.index:
                     pl_id = winners["player_id"][ind]

@@ -2,6 +2,7 @@ import streamlit as st
 from sqlalchemy import text
 from PIL import Image
 import os
+import ast
 
 path = os.path.dirname(__file__)
 
@@ -89,3 +90,14 @@ def runsql(dbconnector, query):
     except Exception as e:
         st.write(query)
         raise e.with_traceback
+    
+def convert_string_to_bool(str_value):
+    test_list = ["True", "False", "TRUE",
+             "FALSE", "true", "false"]
+    try:
+        value = [str_value.lower().capitalize() 
+       == "True" for str_value in test_list]
+
+    except (SyntaxError, ValueError):
+        return None
+    return bool(value)

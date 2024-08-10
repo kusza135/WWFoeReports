@@ -1,7 +1,7 @@
 import streamlit as st
 from streamlit_extras.stylable_container import stylable_container
 from PIL import Image
-from tools.streamlit_tools import execute_query, page_header, get_world_id, get_guild_id, create_engine
+from tools.streamlit_tools import execute_query, page_header, get_world_id, get_guild_id, create_engine, convert_string_to_bool
 import tools.login
 import os
 import streamlit_authenticator as stauth
@@ -157,6 +157,22 @@ def get_all_recruters():
                                     x.world = '{get_world_id()}'
                                     AND x.guildid = {get_guild_id()} 
                                 ''', return_type="df")
+
+
+@st.dialog(title="Zmien parametry", width="large")
+def change_params(df, edited_df):
+    c1, c2, c3,  = st.columns([20,60,20])
+    old_value = df[df['id_key'] == df.iloc[edited_df.selection['rows'][0]]['id_key']]['Param_Value'].iloc[0]
+    if convert_string_to_bool(old_value) == True:
+        new_value = c2.selectbox(label="Wpisz nową wartość", options=[True, False], label_visibility="hidden")
+    elif old_value.isdigit():
+        new_value = c2.number_input(label="Wpisz nową wartość", value=old_value, label_visibility="hidden")
+    else:
+        new_value = c2.text_input(label="Wpisz nową wartość", label_visibility="hidden", value=old_value)
+    c2.button(label="Zmień")
+
+    if df.iloc[edited_df.selection['rows'][0]]['Param_Name'] == '"GPC Lottery module"':
+        param_lottery_exceptions()
 
 def main():
     
@@ -374,12 +390,8 @@ def main():
                 )
 
                 if edited_df.selection['rows']:
-                    c1, c2, c3,  = st.columns([20,60,20])
-                    new_value = c2.text_input(label="Wpisz nową wartość", label_visibility="hidden", value=df[df['id_key'] == df.iloc[edited_df.selection['rows'][0]]['id_key']]['Param_Value'].iloc[0])
-                    c2.button(label="Zmień")
+                    change_params(df, edited_df)
 
-                    if df.iloc[edited_df.selection['rows'][0]]['Param_Name'] == '"GPC Lottery module"':
-                        param_lottery_exceptions()
 
         with tab5.container() as x:
             

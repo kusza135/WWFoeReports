@@ -284,6 +284,8 @@ def first_report():
     def button_cb():
         get_all_players_from_raw.clear()
         get_prospect_history.clear()
+        st.cache_data.clear()
+        # st.rerun()
 
     def prospect_history(Player_id):
         col1, col2 = st.columns([50, 5])

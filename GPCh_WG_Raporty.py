@@ -247,6 +247,36 @@ WHERE
     gpc_leader_sql = execute_query(qry, return_type="df")
     return gpc_leader_sql
 
+
+@st.fragment
+def players_changed_age(date_filter):
+    qry = f'''SELECT 
+            report_date
+            , playerId
+            , name
+            , player_score
+            , ROW_NUMBER() OVER (PARTITION BY report_date ORDER BY player_score DESC) RN
+        FROM 
+        (
+            select 
+                report_date
+                , playerId
+                , Foe_WW.V_GPCH.name name 
+                ,  max(score) player_score
+        FROM 
+            Foe_WW.t_all_players tap
+        INNER JOIN 
+            Foe_WW.V_GPCH
+            on playerId = player_id 
+        WHERE world  = '{get_world_id()}'
+        AND report_date  = '{date_filter[0:10]}' 
+        and valid_from  between DATE_ADD(report_date ,INTERVAL case when GPCH_DATE_OF_DAY=0 then -11 else -GPCH_DATE_OF_DAY end  DAY) and report_date
+        GROUP BY 1, 2, 3
+        having count(DISTINCT era)>1
+    ) x'''
+    players_changed_age = execute_query(qry, return_type="df")
+    return players_changed_age
+
 def list_gpc_lottery_exceptions():
     list_gpc_lottery_exceptions = execute_query(f'''SELECT  
 		player_id
@@ -411,12 +441,26 @@ def new_approach(date_filter):
         player_pos2= (col1.number_input(label="Pozycja w tabeli", value=10, min_value=1, max_value=80)) 
         perc_ind2 = (col2.number_input(label="Procent od wyniku", value=10, min_value=1, max_value=100))/100
         player_activity = col3.radio(label="Gracze", options=['Wszyscy', 'Aktywni', 'Nieaktywni'], index=2)
+
+
     if not get_GPCH_leader(date_filter, player_pos).empty:
         gpc_leader = get_GPCH_leader(date_filter, player_pos)
         gpc_leader2 = get_GPCH_leader(date_filter, player_pos2)
+        cc1, cc2 = st.columns([40,  30])
+        cc1.markdown(f"TOP {player_pos} GPCH był **{gpc_leader['name'].iloc[0]}** z wynikiem **{gpc_leader['player_score'].iloc[0]}** walk. Wynik do osiągnięcia wynosi **{int(round(gpc_leader['player_score'].iloc[0]*perc_ind, 0))}**")
+        cc1.markdown(f"TOP {player_pos2} GPCH był **{gpc_leader2['name'].iloc[0]}** z wynikiem **{gpc_leader2['player_score'].iloc[0]}** walk. Wynik do osiągnięcia wynosi **{int(round(gpc_leader2['player_score'].iloc[0]*perc_ind2, 0))}**")
 
-        st.markdown(f"TOP {player_pos} GPCH był **{gpc_leader['name'].iloc[0]}** z wynikiem **{gpc_leader['player_score'].iloc[0]}** walk. Wynik do osiągnięcia wynosi **{int(round(gpc_leader['player_score'].iloc[0]*perc_ind, 0))}**")
-        st.markdown(f"TOP {player_pos2} GPCH był **{gpc_leader2['name'].iloc[0]}** z wynikiem **{gpc_leader2['player_score'].iloc[0]}** walk. Wynik do osiągnięcia wynosi **{int(round(gpc_leader2['player_score'].iloc[0]*perc_ind2, 0))}**")
+        with cc2.expander(label="Gracze, którzy zmienili epokę ..."):
+            changed_age_players = players_changed_age(date_filter)
+            st.dataframe(changed_age_players, column_config={
+                                    "report_date": st.column_config.DateColumn(label="Data końca GPCh"), 
+                                    "playerId": None, 
+                                    "RN": None, 
+                                    "name": st.column_config.TextColumn(label="Gracz"), 
+                                    "player_score": st.column_config.NumberColumn(label="Wygrane Bitwy")
+                                },
+                        hide_index=True
+                        , use_container_width=True)
 
         gpc_results = list_gpch_result_all(date_filter)
         gpc_results['score_1'] = np.where(gpc_results['Wygrane_bitwy']< gpc_leader['player_score'].iloc[0]*perc_ind, False, True)

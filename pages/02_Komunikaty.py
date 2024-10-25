@@ -74,7 +74,7 @@ def cheat_sheet():
             st.divider()
     else:            
         # with tab2:
-            col11, col22, col33  = st.columns([5, 5, 5])
+            col11, col22, col33, col44  = st.columns([5, 5, 5, 5])
             for i in res.index:
                 if i//4==0:
                     with col11.container() as x:
@@ -87,6 +87,10 @@ def cheat_sheet():
                 if i//4==2:
                     with col33.container() as x:
                         if st.button(res.iloc[i]['msg_type'], key=f'P2_{i}', help=None, on_click=None, type="secondary", disabled=False, use_container_width=True):
+                            st.session_state['textmsg'] = res.iloc[i]['msg_type']
+                if i//4==3:
+                    with col44.container():
+                        if st.button(res.iloc[i]['msg_type'], key=f'P1_{i}', help=None, on_click=None, type="secondary", disabled=False, use_container_width=True):
                             st.session_state['textmsg'] = res.iloc[i]['msg_type']
 
             

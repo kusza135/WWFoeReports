@@ -145,6 +145,7 @@ AND score < forecast
 ''',
         return_type="df",
     )
+    return gpch_result_catch
 
 @st.fragment
 def list_guild_stats(date_filter):

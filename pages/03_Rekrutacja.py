@@ -137,12 +137,11 @@ def get_df_ages():
 def get_guilds(world):
     df_guilds = execute_query(f'''SELECT clanId, name AS Gildia, members  FROM V_all_guilds WHERE world = '{world}' -- and clanId <> {get_guild_id()} ''',return_type="df")
     return df_guilds
-
-@st.cache_resource(ttl=0, show_spinner="Pobieranie danych (rekruterzy) ...")
+@st.fragment
 def get_df_recruters():
     df_recruters = execute_query(f'''SELECT playerId, name, is_active FROM v_recruters WHERE world = '{get_world_id()}' and guildid = {get_guild_id()} ''',return_type="df")
     return df_recruters
-@st.cache_resource(ttl=0, show_spinner="Pobieranie danych (statusy) ...")
+@st.fragment
 def get_statuses():
     df_statuses = execute_query(f'''SELECT  status_id, status_Name FROM t_statuses WHERE module_name = 'PROSPECT' ''',return_type="df")
     return df_statuses
@@ -508,8 +507,9 @@ def first_report():
         with col5.container():
             filter_by_prospect = st.checkbox(label="Rekrutacja", value=False)
             if filter_by_prospect:
-                filter_by_prospect = st.radio(label="Status", options=df_statuses.status_Name.sort_index().unique(), index=0, horizontal=True, label_visibility="hidden")
-                all_players = all_players[all_players['Status'] == (filter_by_prospect)]          
+                filter_by_prospect = st.pills(label="Status", options=df_statuses.status_Name.sort_index().unique().tolist(), selection_mode="multi", format_func=str,label_visibility="hidden")
+                
+                all_players = all_players[all_players['Status'].isin(filter_by_prospect)]          
 
 
     df_selected_player = dataframe_with_selections(all_players)

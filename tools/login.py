@@ -1,6 +1,6 @@
 import streamlit as st
 import streamlit_authenticator as stauth
-from  tools.streamlit_tools import execute_query, get_world_id, get_guild_id
+from  tools.streamlit_tools import execute_query, get_world_id, get_guild_id, create_engine, time
 
 
 def get_users_credentials_from_db():
@@ -51,11 +51,25 @@ def display_logged_user(name):
     st.sidebar.markdown(f'<center><p style="background-color:#e9f7e1;color:#666963;font-size:14px;">Zalogowano jako <br>{name}</p>', unsafe_allow_html=True)
 
 def new_user(login, UserName, Password):
-    execute_query(f"call p_add_user('{get_world_id()}', {get_guild_id()},'{login}','{UserName}', '{Password}')", return_type="df")
+    # execute_query(f"call p_add_user('{get_world_id()}', {get_guild_id()},'{login}','{UserName}', '{Password}')", return_type="df")
+    exec_sp('p_add_user', login, UserName, Password)
+
+def exec_sp(sp_name, *args):
+    con = create_engine()
+    try:
+        conn = con.raw_connection()
+        cur = conn.cursor()
+        cur.callproc(sp_name, args=[get_world_id(), get_guild_id(), *args])
+        cur.close() 
+    except Exception as e:
+        st.error(e)
+        time.sleep(20)
+    finally:
+        conn.close() 
+
     
 def db_change_pwd(UserName, Password):
-    query = f"call p_modify_user('{get_world_id()}', {get_guild_id()}, '{UserName}', '{Password}')"
-    execute_query(query, return_type="df")
+    exec_sp('p_add_user', UserName, Password)
 
 
 def reset_password(authenticator):

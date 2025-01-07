@@ -148,6 +148,44 @@ AND score < forecast
     return gpch_result_catch
 
 @st.fragment
+def list_nk_result_all(date_filter):
+    nk_result_all = execute_query(
+        f'''select 
+                report_date
+                , player_id
+                , name as "Player_name"
+                , Age_PL as "Epoka"
+                , NK_DATE_OF_DAY as "NK_day"
+                , progressContribution AS "Postęp"
+                , actionPoints AS "Działania"
+                , forecast
+from V_NK where report_date = '{date_filter}'  and world = '{get_world_id()}' and guild_id = {get_guild_id()}
+''',
+        return_type="df",
+    )
+    return nk_result_all
+
+@st.fragment
+def list_nk_result_catch(date_filter):
+    nk_result_catch = execute_query(
+        f'''select 
+                report_date
+                , player_id
+                , name as "Player_name"
+                , Age_PL as "Epoka"
+                , NK_DATE_OF_DAY as "NK_day"
+                , progressContribution AS "Postęp"
+                , actionPoints AS "Działania"
+                , forecast
+from V_NK where report_date = '{date_filter}'  and world = '{get_world_id()}' and guild_id = {get_guild_id()}
+AND actionPoints < forecast
+''',
+        return_type="df",
+    )
+    return nk_result_catch
+
+
+@st.fragment
 def list_guild_stats(date_filter):
     guild_stats_sql = execute_query(
         f'''SELECT 
@@ -314,6 +352,8 @@ def run_reports():
         wg_reports(date_filter)
         st.text("\n\n\n")
         gpch_reports(date_filter)
+        st.text("\n\n\n")
+        nk_reports(date_filter)
 
         st.text("\n\n\n")
         new_approach(date_filter)
@@ -428,6 +468,59 @@ def gpch_reports(date_filter):
     col2.altair_chart(bar2 + tick2, theme="streamlit", use_container_width=True)
     # col1.bar_chart(gpch_result_all, x="Player_name", y= "Wygrane_bitwy" )
     # col2.bar_chart(gpch_result_catch, x="Player_name", y= "Wygrane_bitwy" , color="#f24951" )
+
+
+def nk_reports(date_filter):
+    st.subheader('Najazdy Kwantowe  \n  \n', anchor='nk', divider='rainbow')
+    nk_result_all = list_nk_result_all(date_filter)
+    nk_result_catch = list_nk_result_catch(date_filter)
+    if (nk_result_all.iloc[0]['NK_day'] <12 and nk_result_all.iloc[0]['NK_day']>0): 
+        st.markdown(f"*Najazdy Kwantowe* są :large_green_circle::large_green_circle: :green[w trakcie] :large_green_circle::large_green_circle: day({nk_result_all.iloc[0]['NK_day']}).")
+    else:  
+        st.markdown("*Najazdy Kwantowe* są :red_circle: :red[zakończone] :red_circle:.")
+    col1, col2 = st.columns([1, 1])
+    
+    bar1 = alt.Chart(nk_result_all).mark_bar().encode(
+    x=alt.X("Player_name:N", title='Nick Gracza'),
+    y=alt.Y("Postęp:Q", title='Postęp'),
+    tooltip=["Player_name:N", "Epoka:N", "Postęp:Q", "Działania:Q"]
+    ).properties(
+        title='Statystyka edycji Najazdów Kwantowych',
+        width=alt.Step(40)  # controls width of bar.
+    ).interactive()
+    
+    tick1 = alt.Chart(nk_result_all).mark_tick(
+        color='red',
+        thickness=2,
+        size=40 * 0.45,  # controls width of tick.
+    ).encode(
+        x="Player_name:N",
+        y="forecast:Q"
+    )
+    
+    bar2 = alt.Chart(nk_result_catch).mark_bar(color='#e8513a').encode(
+    x=alt.X("Player_name:N", title='Nick Gracza'),
+    y=alt.Y("Postęp:Q", title='Postęp'),
+    tooltip=["Player_name:N", "Epoka:N", "Postęp:Q", "Działania:Q"]
+    ).properties(
+        title='Warto zachęcić',
+        width=alt.Step(40)  # controls width of bar.
+    ).interactive()
+    
+    tick2 = alt.Chart(nk_result_catch).mark_tick(
+        color='#47b552',
+        thickness=2,
+        size=40 * 0.45,  # controls width of tick.
+    ).encode(
+        x="Player_name:N",
+        y="forecast:Q"
+    )
+    
+    col1.altair_chart(bar1 + tick1, use_container_width=True)
+    col2.altair_chart(bar2 + tick2, theme="streamlit", use_container_width=True)
+
+
+
 
 def guild_stats(date_filter):
     st.subheader('Statystyki Gildii', anchor='guild', divider='rainbow')

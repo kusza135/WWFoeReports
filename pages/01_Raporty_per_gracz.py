@@ -171,44 +171,44 @@ def wg_player_stats(filters):
         
 def gpch_player_stats(filters):
         gpch_result_all = execute_query(
-        f'''select 
-                player_id
-                , CAST(report_date AS CHAR) AS Report_date
-                , name as "Player_name"
-                , Age_PL as "Epoka"
-                , GPCH_DATE_OF_DAY as "GPCH_day"
-                , "RANK"
-                , battlesWon "Wygrane_bitwy"
-                , negotiationsWon  "Wygrane_negocjacje"
-                , score 
-                , "Forecast"
-from V_GPCH where GPCH_DATE_OF_DAY = 0
-AND world = '{get_world_id()}'
-            AND guild_id = {get_guild_id()}
-            UNION ALL
-            select 
-                player_id
-                , CAST(a.report_date AS CHAR) AS Report_date
-                , name as "Player_name"
-                , Age_PL as "Epoka"
-                , GPCH_DATE_OF_DAY as "GPCH_day"
-                , "RANK"
-                , battlesWon "Wygrane_bitwy"
-                , negotiationsWon  "Wygrane_negocjacje"
-                , score 
-                , "Forecast"
-            from V_GPCH a
-            INNER JOIN 
-            	(SELECT MIN(report_date) AS report_date FROM V_GPCH WHERE world = '{get_world_id()}' AND guild_id = {get_guild_id()}) c
-            ON a.report_date = c.report_date
-            WHERE 
-            a.world = '{get_world_id()}'
-            AND a.guild_id = {get_guild_id()}
+        f'''
+               select 
+                    player_id
+                    , CAST(report_date AS CHAR) AS Report_date
+                    , name as "Player_name"
+                    , Age_PL as "Epoka"
+                    , GPCH_DATE_OF_DAY as "GPCH_day"
+                    , "RANK"
+                    , battlesWon "Wygrane_bitwy"
+                    , negotiationsWon  "Wygrane_negocjacje"
+                    , score 
+                    , "Forecast"
+                from V_GPCH where GPCH_DATE_OF_DAY = 0
+                AND world = '{get_world_id()}'
+                AND guild_id = {get_guild_id()}
+                UNION ALL
+                select 
+                    player_id
+                    , CAST(a.report_date AS CHAR) AS Report_date
+                    , name as "Player_name"
+                    , Age_PL as "Epoka"
+                    , GPCH_DATE_OF_DAY as "GPCH_day"
+                    , "RANK"
+                    , battlesWon "Wygrane_bitwy"
+                    , negotiationsWon  "Wygrane_negocjacje"
+                    , score 
+                    , "Forecast"
+                from V_GPCH a
+                INNER JOIN 
+                    (SELECT MIN(report_date) AS report_date FROM V_GPCH WHERE world = '{get_world_id()}' AND guild_id = {get_guild_id()}) c
+                ON a.report_date = c.report_date
+                WHERE 
+                a.world = '{get_world_id()}'
+                AND a.guild_id = {get_guild_id()}
             ''',
                     return_type="df",
                 )
         gpch_result_all = gpch_result_all[gpch_result_all['player_id'].isin(filters)]
-        
         
         base=alt.Chart(gpch_result_all).mark_bar(strokeWidth=1).encode(
             x=alt.X('Report_date:N', axis = alt.Axis(title = 'Data zakończenia GPCh', labelAngle=5)),
@@ -232,27 +232,69 @@ AND world = '{get_world_id()}'
         )
         st.altair_chart(bars + text, theme=None, use_container_width=True)
         
-# def guild_player_stats(filters):
-#         guild_stats_sql = execute_query(
-#         f'''select 
-#                 a.player_id
-#                 , Report_date
-#                 , a.`rank`
-#                 , a.name as "Player_name"
-#                 , a.score
-#                 , a.won_battles
-#                 , a.Age_PL as "Epoka"
-#                 , title
-#                 , Join_date
-#                 , leave_date
-# from V_GUILD_PLAYERS a
-# inner join V_WG b on a.player_id   = b.player_id 
-# where wg_date_of_day = 0
-# AND report_date between valid_from and valid_to
-#             ''',
-#                     return_type="df",
-#                 )
-#         st.table(guild_stats_sql[guild_stats_sql['player_id'].isin(filters)])
+def nk_player_stats(filters):
+        nk_result_all = execute_query(
+        f'''SELECT 
+                DISTINCT *
+            FROM 
+            (
+                select 
+                    player_id
+                    , CAST(report_date AS CHAR) AS Report_date
+                    , name as "Player_name"
+                    , Age_PL as "Epoka"
+                    , NK_DATE_OF_DAY as "NK_day"
+                    , progressContribution AS "Postep"
+                    , actionPoints AS "Działania"
+                from V_NK where NK_DATE_OF_DAY = 0
+                AND world = '{get_world_id()}'
+                AND guild_id = {get_guild_id()}
+                UNION ALL
+                select 
+                    player_id
+                    , CAST(a.report_date AS CHAR) AS Report_date
+                    , name as "Player_name"
+                    , Age_PL as "Epoka"
+                    , NK_DATE_OF_DAY as "NK_day"
+                    , progressContribution AS "Postep"
+                    , actionPoints AS "Działania"
+                from V_NK a
+                INNER JOIN 
+                    (SELECT MIN(report_date) AS report_date FROM V_NK WHERE world = '{get_world_id()}' AND guild_id = {get_guild_id()}) c
+                ON a.report_date = c.report_date
+                WHERE 
+                a.world = '{get_world_id()}'
+                AND a.guild_id = {get_guild_id()}
+            ) as x
+            ''',
+                    return_type="df",
+                )
+        nk_result_all = nk_result_all[nk_result_all['player_id'].isin(filters)]
+
+        
+        base=alt.Chart(nk_result_all).mark_bar(strokeWidth=1).encode(
+            x=alt.X('Report_date:N', axis = alt.Axis(title = 'Data zakończenia Najazdów Kwantowych', labelAngle=5)),
+            y=alt.Y('Postep:Q', axis = alt.Axis(title = 'Postęp', labelAngle=5)),
+            xOffset="Player_name:N",
+            tooltip=["Player_name:N", "Report_date", "Epoka", "Postep:Q", "Działania:Q"]
+            # column=alt.Column('report_date:T', title="", spacing =1), #spacing =0 removes space between columns, column for can and st 
+        ).properties( height = 300, title='Statystyka wszystkich edycji Najazdów Kwantowych gracza/y'
+            , width=alt.Step(3)).interactive()
+        
+        bars = base.mark_bar().encode(
+            color='Player_name:N',
+        )
+        text = base.mark_text(
+            align='center',
+            baseline='top'
+            , color="black"
+            , dy=-30  # Nudges text to right so it doesn't appear on top of the bar
+        ).encode(
+            text='Player_name:N'
+        )
+        st.altair_chart(bars + text, theme=None, use_container_width=True)
+   
+
         
 def guild_player_history(filters):
         query = f'''select 
@@ -361,6 +403,9 @@ def run_reports():
     st.subheader('Gildyjne Pola Chwały  \n  \n',anchor='gpch',  divider='rainbow')
     st.text("\n\n\n")
     gpch_player_stats(filters)
+    st.subheader('Najazdy Kwantowe  \n  \n',anchor='nk',  divider='rainbow')
+    st.text("\n\n\n")
+    nk_player_stats(filters)
     # st.subheader('Statystyki w Gildii  \n  \n',anchor='stats',  divider='rainbow')
     # st.text("\n\n\n")
     # guild_player_stats(filters)

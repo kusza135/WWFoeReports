@@ -119,6 +119,8 @@ def wg_player_stats(filters):
                 , "forecast"
             from V_WG
             WHERE wg_date_of_day = 0
+            AND world = '{get_world_id()}'
+            AND guild_id = {get_guild_id()}
             UNION ALL
             select 
                 Player_id
@@ -132,8 +134,11 @@ def wg_player_stats(filters):
                 , "forecast"
             from V_WG a
             INNER JOIN 
-            	(SELECT MIN(report_date) as report_date FROM V_WG) c
+            	(SELECT MIN(report_date) as report_date FROM V_WG WHERE world = '{get_world_id()}' AND guild_id = {get_guild_id()}) c
             	ON a.report_date = c.report_date
+            WHERE 
+                a.world = '{get_world_id()}'
+            AND a.guild_id = {get_guild_id()}
             ''',
                     return_type="df",
                 )
@@ -178,6 +183,8 @@ def gpch_player_stats(filters):
                 , score 
                 , "Forecast"
 from V_GPCH where GPCH_DATE_OF_DAY = 0
+AND world = '{get_world_id()}'
+            AND guild_id = {get_guild_id()}
             UNION ALL
             select 
                 player_id
@@ -192,8 +199,11 @@ from V_GPCH where GPCH_DATE_OF_DAY = 0
                 , "Forecast"
             from V_GPCH a
             INNER JOIN 
-            	(SELECT MIN(report_date) AS report_date FROM V_GPCH) c
+            	(SELECT MIN(report_date) AS report_date FROM V_GPCH WHERE world = '{get_world_id()}' AND guild_id = {get_guild_id()}) c
             ON a.report_date = c.report_date
+            WHERE 
+            a.world = '{get_world_id()}'
+            AND a.guild_id = {get_guild_id()}
             ''',
                     return_type="df",
                 )
@@ -263,6 +273,9 @@ def guild_player_history(filters):
                 , valid_from
                 , valid_to
             from V_GUILD_PLAYERS a
+            # WHERE 
+            #     a.world = '{get_world_id()}'
+            #     AND a.guild_id = {get_guild_id()}
             ORDER BY
                 Valid_from
             '''
@@ -315,6 +328,8 @@ def list_notes_for_users(filters):
                 FROM V_GUILD_PLAYERS a
                 WHERE 
                     notka is not null
+                    # AND a.world = '{get_world_id()}'
+                    # AND a.guild_id = {get_guild_id()}
             ) x
             WHERE RN = 1
             '''

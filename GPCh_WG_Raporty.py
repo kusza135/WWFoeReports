@@ -235,7 +235,9 @@ FROM
         INNER JOIN 
             Foe_WW.V_GPCH
             on playerId = player_id 
-        WHERE world  = '{get_world_id()}'
+            and tap.world =V_GPCH.world
+            and tap.clanId = V_GPCH.guild_id
+        WHERE tap.world  = '{get_world_id()}'
         AND report_date  = '{date_filter[0:10]}' 
         and valid_from  between DATE_ADD(report_date ,INTERVAL case when GPCH_DATE_OF_DAY=0 then -11 else -GPCH_DATE_OF_DAY end  DAY) and report_date
         GROUP BY 1, 2, 3
@@ -269,7 +271,9 @@ def players_changed_age(date_filter):
         INNER JOIN 
             Foe_WW.V_GPCH
             on playerId = player_id 
-        WHERE world  = '{get_world_id()}'
+            and tap.world =V_GPCH.world
+            and tap.clanId = V_GPCH.guild_id
+        WHERE tap.world  = '{get_world_id()}'
         AND report_date  = '{date_filter[0:10]}' 
         and valid_from  between DATE_ADD(report_date ,INTERVAL case when GPCH_DATE_OF_DAY=0 then -11 else -GPCH_DATE_OF_DAY end  DAY) and report_date
         GROUP BY 1, 2, 3

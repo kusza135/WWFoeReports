@@ -384,13 +384,39 @@ def list_notes_for_users(filters):
             
             st.warning(f'Gracz **{player_name}** ma zapisaną notatkę: \n\n{notka}\n', icon='⚠️')
          
+def player_nick_changes(filters):
+        changed_nick_sql = execute_query( f'''
+                        SELECT 
+                          GP.player_id              
+                          , GP.name "OLD_NAME" 
+                          , VAP.name "CURRENT_NAME"
+                        FROM 
+                          (SELECT player_id, name, ROW_NUMBER() over (partition by player_id order by valid_to desc) rn FROM V_GUILD_PLAYERS) GP
+                        Inner JOIN
+                          V_all_players VAP
+                          ON GP.player_id =  VAP.PLAYERID 
+                          and rn = 1
+                        WHERE 
+                            VAP.VALID_TO  = '3000-12-31'
+                            AND VAP.WORLD = '{get_world_id()}' 
+                            and GP.name <> VAP.name
+            ''', return_type="df")
+        changed_nick = changed_nick_sql[changed_nick_sql['player_id'].isin(filters)]
 
+        
+        for names in range(len(changed_nick)):
+            old_name = changed_nick['OLD_NAME'].iloc[names]
+            current_name = changed_nick['CURRENT_NAME'].iloc[names]
+            
+            st.info(f'Gracz **{old_name}** zmienił nick na **{current_name}**', icon="ℹ️")
    
 def run_reports():
     st.subheader(" ##  Postępy Graczy  ## ", anchor='PostępyGraczy')
     
     filters = filter_Setup()
-    
+
+    player_nick_changes(filters)
+
     list_notes_for_users(filters)
     
     st.subheader('Historia aktywności z ostatnich 30 dni  \n  \n',anchor='activity',  divider='rainbow')

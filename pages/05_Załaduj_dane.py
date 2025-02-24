@@ -259,6 +259,7 @@ def run_loads(Load_Method, guildPlayers_data, wg_data, gpch_data, nk_data, vdate
         st.session_state.pop(f"{Load_Method}_{guildPlayers}")
         st.session_state.pop(f"{Load_Method}_{wg}")
         st.session_state.pop(f"{Load_Method}_{gpch}")
+        st.session_state.pop(f"{Load_Method}_{nk}")
 
 def main():    
     page_header()

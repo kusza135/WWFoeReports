@@ -144,6 +144,7 @@ def load_data_intoDB(db_conn, dfName, DfData, vdate = date.today()):
                                         , 'xpeditionPoints'
                                         , 'solvedEncounters'
                                         , 'contributionDifficulty'
+                                        , 'currentTrial'
                                        ]]
             
             runsql(db_conn, f'DROP TABLE IF EXISTS __{dfName}')

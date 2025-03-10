@@ -79,6 +79,7 @@ def list_wg_result_all(date_filter):
                 , expeditionPoints
                 , solvedEncounters AS "Wygrane_bitwy"
                 ,  "WG_LEVEL"
+                , currentTrial AS "Próba"
                 , "forecast"
 from V_WG where report_date = '{date_filter}' 
 ''',
@@ -97,6 +98,7 @@ def list_wg_result_catch(date_filter):
                 , expeditionPoints
                 , solvedEncounters AS "Wygrane_bitwy"
                 ,  WG_LEVEL
+                , currentTrial AS "Próba"
                 , "forecast"
 from V_WG where report_date = '{date_filter}' 
 AND solvedEncounters < "forecast" 
@@ -379,7 +381,7 @@ def wg_reports(date_filter):
     x=alt.X("Player_name", title='Nick Gracza'),
     y=alt.Y("Wygrane_bitwy", title='Wygrane bitwy'),
     color="WG_LEVEL",
-    tooltip=["Player_name", "Epoka", "WG_LEVEL", "Wygrane_bitwy"]
+    tooltip=["Player_name", "Epoka", "WG_LEVEL", "Wygrane_bitwy","Próba"]
     ).properties(
         title='Statystyka edycji WG',
         width=alt.Step(40)  # controls width of bar.
@@ -399,7 +401,7 @@ def wg_reports(date_filter):
     bar2 = alt.Chart(wg_result_catch).mark_bar(color='#e8513a').encode(
     x=alt.X("Player_name", title='Nick Gracza'),
     y=alt.Y("Wygrane_bitwy", title='Wygrane bitwy'),
-    tooltip=["Player_name", "Epoka", "WG_LEVEL", "Wygrane_bitwy"]
+    tooltip=["Player_name", "Epoka", "WG_LEVEL", "Wygrane_bitwy", "Próba"]
     ).properties(
         title='Warto skontaktować się z',
         width=alt.Step(40)  # controls width of bar.

@@ -116,6 +116,7 @@ def wg_player_stats(filters):
                 , expeditionPoints
                 , solvedEncounters AS "Wygrane_bitwy"
                 ,  "WG_LEVEL"
+                , currentTrial AS "Próba"
                 , "forecast"
             from V_WG
             WHERE wg_date_of_day = 0
@@ -131,6 +132,7 @@ def wg_player_stats(filters):
                 , expeditionPoints
                 , solvedEncounters AS "Wygrane_bitwy"
                 ,  "WG_LEVEL"
+                , currentTrial AS "Próba"
                 , "forecast"
             from V_WG a
             INNER JOIN 
@@ -149,7 +151,7 @@ def wg_player_stats(filters):
             x=alt.X('Report_date:N', axis = alt.Axis(title = 'Data zakończenia WG', labelAngle=5)),
             y='Wygrane_bitwy:Q',
             xOffset="Player_name:N",
-            tooltip=["Player_name:N", "Report_date", "Epoka", "WG_LEVEL", "Wygrane_bitwy"]
+            tooltip=["Player_name:N", "Report_date", "Epoka", "WG_LEVEL", "Wygrane_bitwy", "Próba"]
             # column=alt.Column('report_date:T', title="", spacing =1), #spacing =0 removes space between columns, column for can and st 
         ).properties( title='Statystyka wszystkich edycji WG gracza/y'
             , width=alt.Step(10)).interactive()

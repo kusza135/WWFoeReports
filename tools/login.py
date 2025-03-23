@@ -69,7 +69,7 @@ def exec_sp(sp_name, *args):
 
     
 def db_change_pwd(UserName, Password):
-    exec_sp('p_add_user', UserName, Password)
+    exec_sp('p_modify_user', UserName, Password)
 
 
 def reset_password(authenticator):

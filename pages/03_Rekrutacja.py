@@ -54,6 +54,7 @@ def get_all_players(world):
                 , battlesDif
                 , avg_last_battles
                 , avg_last_points
+                , guild_join_date
                 , valid_to
             FROM V_all_players
             WHERE
@@ -334,7 +335,7 @@ def first_report():
             modification_container = st.container()
             with modification_container:
                 filters = []
-                to_filter_columns = st.multiselect("Wybierz gildie", df_player_guild_history.Gracz.sort_values().unique(), max_selections =4, placeholder="Rozwiń lub zacznij wpisywać")
+                to_filter_columns = st.multiselect("Wybierz gracza", df_player_guild_history.Gracz.sort_values().unique(), max_selections =4, placeholder="Rozwiń lub zacznij wpisywać")
                 for row in to_filter_columns:
                     df2=df_player_guild_history.loc[df_player_guild_history['Gracz'] == row, 'playerId'].iloc[0]
                     filters.append(df2)
@@ -447,6 +448,7 @@ def first_report():
                             "Player_link":  st.column_config.LinkColumn(label="Player_link", display_text="ScoreDB link"), 
                             "avg_last_battles": st.column_config.NumberColumn(label="Średnia ilość walk (30 dni)"), 
                             "Prospect": st.column_config.CheckboxColumn(default=False, disabled=True), 
+                            "guild_join_date": st.column_config.DateColumn(label="Data dołączenia do Gildii", format='YYYY-MM-DD'),
                             "world" : None,
                             "battlesDif": None, 
                             "pointsDif": None, 
@@ -468,7 +470,7 @@ def first_report():
         with col1.container():
             f_guilds = st.checkbox(label="Wyklucz/Oznacz wybrane gildie", value=False)
             if f_guilds:
-                radio_guilds = st.radio(label="Gildie", options=['Wyklucz Gildie', 'Wybrane Gildie'], index=0, horizontal=True, label_visibility="hidden")
+                radio_guilds = st.radio(label="Gildie", options=['Wyklucz Gildie', 'Wybrane Gildie'], index=1, horizontal=True, label_visibility="hidden")
                 if radio_guilds== 'Wyklucz Gildie':
                     f_exl_guilds = exl_guids(df_guilds)
                     all_players = all_players[~all_players['ClanId'].isin(f_exl_guilds)]

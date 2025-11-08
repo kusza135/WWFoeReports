@@ -10,7 +10,9 @@ def get_users_credentials_from_db():
                     , UserName
                     , UserPassword
                 FROM   
-                    V_users'''
+                    V_users
+                WHERE world =  '{get_world_id()}'
+                AND guildid =  {get_guild_id()}'''
     all_users_db=execute_query(query=query, return_type='list')
     return all_users_db
 

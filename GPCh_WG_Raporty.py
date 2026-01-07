@@ -113,15 +113,24 @@ def list_gpch_result_all(date_filter):
         f'''select 
                 report_date
                 , player_id
-                , name as "Player_name"
-                , Age_PL as "Epoka"
+                , avatar
+                , V_GPCH.name as "Player_name"
+                , V_GPCH.Age_PL as "Epoka"
                 , GPCH_DATE_OF_DAY as "GPCH_day"
                 , "RANK"
                 , battlesWon
                 , negotiationsWon
                 , score AS "Wygrane_bitwy"
                 , "Forecast"
-from V_GPCH where report_date = '{date_filter}' 
+from 
+    V_GPCH
+LEFT JOIN 
+    V_all_players tap
+    ON tap.playerId = V_GPCH.player_id
+    AND tap.world = '{get_world_id()}' 
+    AND '{date_filter}'  BETWEEN tap.valid_from AND tap.valid_to
+ WHERE report_date = '{date_filter}' 
+
 ''',
         return_type="df",
     )
@@ -191,18 +200,25 @@ AND actionPoints < forecast
 def list_guild_stats(date_filter):
     guild_stats_sql = execute_query(
         f'''SELECT 
-	"RANK" AS "Rank"
-	, NAME AS "Nick gracza"
-	, Age_PL "Epoka"
-	, won_battles "Wygrane bitwy"
-	, SCORE "Punkty"
-	, TITLE "Tytuł"
-	, JOIN_DATE "Data przyłączenia"
-	, leave_date AS  "Data opuszczenia"
+	V_GUILD_PLAYERS."RANK" AS "Rank"
+    , V_all_players.Avatar
+	, V_GUILD_PLAYERS.name AS "Nick gracza"
+	, V_GUILD_PLAYERS.Age_PL AS "Epoka"
+	, V_GUILD_PLAYERS.won_battles "Wygrane bitwy"
+	, V_GUILD_PLAYERS.score "Punkty"
+	, V_GUILD_PLAYERS.TITLE "Tytuł"
+	, V_GUILD_PLAYERS.join_date "Data przyłączenia"
+	, V_GUILD_PLAYERS.leave_date AS  "Data opuszczenia"
 FROM 
 	V_GUILD_PLAYERS
+LEFT JOIN 
+    V_all_players
+    ON V_GUILD_PLAYERS.player_id = V_all_players.playerId
+    AND V_all_players.world =  '{get_world_id()}'
+    AND '{date_filter}'  BETWEEN V_all_players.valid_from AND V_all_players.valid_to
 WHERE 
-	'{date_filter}'  BETWEEN valid_from  AND valid_to
+	'{date_filter}'  BETWEEN V_GUILD_PLAYERS.valid_from  AND V_GUILD_PLAYERS.valid_to
+    
 ORDER BY "RANK"
 ''',
         return_type="df"
@@ -252,6 +268,7 @@ def get_GPCH_leader(date_filter, rank):
 SELECT  
 	report_date
 	, playerId
+    , avatar
 	, name
 	, player_score
 	, RN                                  
@@ -260,6 +277,7 @@ FROM
         SELECT 
             report_date
             , playerId
+            , avatar
             , name
             , player_score
             , ROW_NUMBER() OVER (PARTITION BY report_date ORDER BY player_score DESC) RN
@@ -268,10 +286,11 @@ FROM
             select 
                 report_date
                 , playerId
+                , avatar
                 , Foe_WW.V_GPCH.name name 
                 ,  max(score) player_score
         FROM 
-            Foe_WW.t_all_players tap
+            Foe_WW.V_all_players tap
         INNER JOIN 
             Foe_WW.V_GPCH
             on playerId = player_id 
@@ -280,8 +299,8 @@ FROM
         WHERE tap.world  = '{get_world_id()}'
         AND report_date  = '{date_filter[0:10]}' 
         and valid_from  between DATE_ADD(report_date ,INTERVAL case when GPCH_DATE_OF_DAY=0 then -11 else -GPCH_DATE_OF_DAY end  DAY) and report_date
-        GROUP BY 1, 2, 3
-        having count(DISTINCT era)=1
+        GROUP BY 1, 2, 3, 4
+        having count(DISTINCT tap.Age_PL)=1
     ) x
 ) y 
 WHERE 
@@ -296,6 +315,7 @@ def players_changed_age(date_filter):
     qry = f'''SELECT 
             report_date
             , playerId
+            , avatar
             , name
             , player_score
             , ROW_NUMBER() OVER (PARTITION BY report_date ORDER BY player_score DESC) RN
@@ -304,10 +324,11 @@ def players_changed_age(date_filter):
             select 
                 report_date
                 , playerId
+                , avatar
                 , Foe_WW.V_GPCH.name name 
                 ,  max(score) player_score
         FROM 
-            Foe_WW.t_all_players tap
+            Foe_WW.V_all_players tap
         INNER JOIN 
             Foe_WW.V_GPCH
             on playerId = player_id 
@@ -316,8 +337,8 @@ def players_changed_age(date_filter):
         WHERE tap.world  = '{get_world_id()}'
         AND report_date  = '{date_filter[0:10]}' 
         and valid_from  between DATE_ADD(report_date ,INTERVAL case when GPCH_DATE_OF_DAY=0 then -11 else -GPCH_DATE_OF_DAY end  DAY) and report_date
-        GROUP BY 1, 2, 3
-        having count(DISTINCT era)>1
+        GROUP BY 1, 2, 3, 4
+        having count(DISTINCT tap.Age_PL)>1
     ) x'''
     players_changed_age = execute_query(qry, return_type="df")
     return players_changed_age
@@ -366,110 +387,116 @@ def run_reports():
  
 def wg_reports(date_filter):
     st.subheader('Wyprawy Gildyjne  \n  \n',anchor='wg',  divider='rainbow')
-    wg_result_all = list_wg_result_all(date_filter)
-    wg_result_catch = list_wg_result_catch(date_filter)
+    try:
+        wg_result_all = list_wg_result_all(date_filter)
+        wg_result_catch = list_wg_result_catch(date_filter)
 
-    
-    if (wg_result_all.iloc[0]['WG_day'] <7 and wg_result_all.iloc[0]['WG_day'] >0): 
-        st.markdown(f"*Wyprawy Gildyjne* są :large_green_circle::large_green_circle: :green[w trakcie] :large_green_circle::large_green_circle: day({wg_result_all.iloc[0]['WG_day']}).")
-    else:  
-        st.markdown("*Wyprawy Gildyjne* są :red_circle: :red[zakończone] :red_circle:.")
         
-    col1, col2 = st.columns([1, 1])
+        if (wg_result_all.iloc[0]['WG_day'] <7 and wg_result_all.iloc[0]['WG_day'] >0): 
+            st.markdown(f"*Wyprawy Gildyjne* są :large_green_circle::large_green_circle: :green[w trakcie] :large_green_circle::large_green_circle: day({wg_result_all.iloc[0]['WG_day']}).")
+        else:  
+            st.markdown("*Wyprawy Gildyjne* są :red_circle: :red[zakończone] :red_circle:.")
+            
+        col1, col2 = st.columns([1, 1])
 
-    bar1 = alt.Chart(wg_result_all).mark_bar().encode(
-    x=alt.X("Player_name", title='Nick Gracza'),
-    y=alt.Y("Wygrane_bitwy", title='Wygrane bitwy'),
-    color="WG_LEVEL",
-    tooltip=["Player_name", "Epoka", "WG_LEVEL", "Wygrane_bitwy","Próba"]
-    ).properties(
-        title='Statystyka edycji WG',
-        width=alt.Step(40)  # controls width of bar.
-    ).interactive()
+        bar1 = alt.Chart(wg_result_all).mark_bar().encode(
+        x=alt.X("Player_name", title='Nick Gracza'),
+        y=alt.Y("Wygrane_bitwy", title='Wygrane bitwy'),
+        color="WG_LEVEL",
+        tooltip=["Player_name", "Epoka", "WG_LEVEL", "Wygrane_bitwy","Próba"]
+        ).properties(
+            title='Statystyka edycji WG',
+            width=alt.Step(40)  # controls width of bar.
+        ).interactive()
+        
+        tick1 = alt.Chart(wg_result_all).mark_tick(
+            color='red',
+            thickness=2,
+            size=40 * 0.45,  # controls width of tick.
+        ).encode(
+            x="Player_name",
+            y="forecast"
+        )
     
-    tick1 = alt.Chart(wg_result_all).mark_tick(
-        color='red',
-        thickness=2,
-        size=40 * 0.45,  # controls width of tick.
-    ).encode(
-        x="Player_name",
-        y="forecast"
-    )
- 
-    ## drugi wykres
-    
-    bar2 = alt.Chart(wg_result_catch).mark_bar(color='#e8513a').encode(
-    x=alt.X("Player_name", title='Nick Gracza'),
-    y=alt.Y("Wygrane_bitwy", title='Wygrane bitwy'),
-    tooltip=["Player_name", "Epoka", "WG_LEVEL", "Wygrane_bitwy", "Próba"]
-    ).properties(
-        title='Warto skontaktować się z',
-        width=alt.Step(40)  # controls width of bar.
-    ).interactive()
+        ## drugi wykres
+        
+        bar2 = alt.Chart(wg_result_catch).mark_bar(color='#e8513a').encode(
+        x=alt.X("Player_name", title='Nick Gracza'),
+        y=alt.Y("Wygrane_bitwy", title='Wygrane bitwy'),
+        tooltip=["Player_name", "Epoka", "WG_LEVEL", "Wygrane_bitwy", "Próba"]
+        ).properties(
+            title='Warto skontaktować się z',
+            width=alt.Step(40)  # controls width of bar.
+        ).interactive()
 
-    tick2 = alt.Chart(wg_result_catch).mark_tick(
-        color='#47b552',
-        thickness=2,
-        size=40 * 0.45,  # controls width of tick.
-    ).encode(
-        x="Player_name",
-        y="forecast"
-    )
-    col1.altair_chart(bar1 + tick1, use_container_width=True)
-    col2.altair_chart(bar2 + tick2, theme="streamlit", use_container_width=True)
-    # col1.bar_chart(wg_result_all, x="Player_name", y= "Wygrane_bitwy" )
-    #col2.bar_chart(wg_result_catch, x="Player_name", y= "Wygrane_bitwy", color="#f24951" )
+        tick2 = alt.Chart(wg_result_catch).mark_tick(
+            color='#47b552',
+            thickness=2,
+            size=40 * 0.45,  # controls width of tick.
+        ).encode(
+            x="Player_name",
+            y="forecast"
+        )
+        col1.altair_chart(bar1 + tick1, use_container_width=True)
+        col2.altair_chart(bar2 + tick2, theme="streamlit", use_container_width=True)
+        # col1.bar_chart(wg_result_all, x="Player_name", y= "Wygrane_bitwy" )
+        #col2.bar_chart(wg_result_catch, x="Player_name", y= "Wygrane_bitwy", color="#f24951" )
+    except IndexError as e:
+        st.error("Brak danych do wyświetlenia. Upewnij się, że Dane za WG są załadowane za wybrany dzień.", icon="🚨")
 
 def gpch_reports(date_filter):
     st.subheader('Pola Chwały  \n  \n', anchor='gpch', divider='rainbow')
-    gpch_result_all = list_gpch_result_all(date_filter)
-    gpch_result_catch = list_gpch_result_catch(date_filter)
-    if (gpch_result_all.iloc[0]['GPCH_day'] <12 and gpch_result_all.iloc[0]['GPCH_day']>0): 
-        st.markdown(f"*Pola Chwały* są :large_green_circle::large_green_circle: :green[w trakcie] :large_green_circle::large_green_circle: day({gpch_result_all.iloc[0]['GPCH_day']}).")
-    else:  
-        st.markdown("*Pola Chwały* są :red_circle: :red[zakończone] :red_circle:.")
-    col1, col2 = st.columns([1, 1])
-    
-    bar1 = alt.Chart(gpch_result_all).mark_bar().encode(
-    x=alt.X("Player_name:N", title='Nick Gracza'),
-    y=alt.Y("Wygrane_bitwy:Q", title='Wygrane bitwy'),
-    tooltip=["Player_name:N", "Epoka:N", "battlesWon:Q", "negotiationsWon:Q"]
-    ).properties(
-        title='Statystyka edycji GPCh',
-        width=alt.Step(40)  # controls width of bar.
-    ).interactive()
-    
-    tick1 = alt.Chart(gpch_result_all).mark_tick(
-        color='red',
-        thickness=2,
-        size=40 * 0.45,  # controls width of tick.
-    ).encode(
-        x="Player_name:N",
-        y="forecast:Q"
-    )
-    
-    bar2 = alt.Chart(gpch_result_catch).mark_bar(color='#e8513a').encode(
-    x=alt.X("Player_name:N", title='Nick Gracza'),
-    y=alt.Y("Wygrane_bitwy:Q", title='Wygrane bitwy'),
-    tooltip=["Player_name:N", "Epoka:N", "battlesWon:Q", "negotiationsWon:Q"]
-    ).properties(
-        title='Warto skontaktować się z',
-        width=alt.Step(40)  # controls width of bar.
-    ).interactive()
-    
-    tick2 = alt.Chart(gpch_result_catch).mark_tick(
-        color='#47b552',
-        thickness=2,
-        size=40 * 0.45,  # controls width of tick.
-    ).encode(
-        x="Player_name:N",
-        y="forecast:Q"
-    )
-    
-    col1.altair_chart(bar1 + tick1, use_container_width=True)
-    col2.altair_chart(bar2 + tick2, theme="streamlit", use_container_width=True)
-    # col1.bar_chart(gpch_result_all, x="Player_name", y= "Wygrane_bitwy" )
-    # col2.bar_chart(gpch_result_catch, x="Player_name", y= "Wygrane_bitwy" , color="#f24951" )
+    try:
+        gpch_result_all = list_gpch_result_all(date_filter)
+        gpch_result_catch = list_gpch_result_catch(date_filter)
+        if (gpch_result_all.iloc[0]['GPCH_day'] <12 and gpch_result_all.iloc[0]['GPCH_day']>0): 
+            st.markdown(f"*Pola Chwały* są :large_green_circle::large_green_circle: :green[w trakcie] :large_green_circle::large_green_circle: day({gpch_result_all.iloc[0]['GPCH_day']}).")
+        else:  
+            st.markdown("*Pola Chwały* są :red_circle: :red[zakończone] :red_circle:.")
+        col1, col2 = st.columns([1, 1])
+        
+        bar1 = alt.Chart(gpch_result_all).mark_bar().encode(
+        x=alt.X("Player_name:N", title='Nick Gracza'),
+        y=alt.Y("Wygrane_bitwy:Q", title='Wygrane bitwy'),
+        tooltip=["Player_name:N", "Epoka:N", "battlesWon:Q", "negotiationsWon:Q"]
+        ).properties(
+            title='Statystyka edycji GPCh',
+            width=alt.Step(40)  # controls width of bar.
+        ).interactive()
+        
+        tick1 = alt.Chart(gpch_result_all).mark_tick(
+            color='red',
+            thickness=2,
+            size=40 * 0.45,  # controls width of tick.
+        ).encode(
+            x="Player_name:N",
+            y="forecast:Q"
+        )
+        
+        bar2 = alt.Chart(gpch_result_catch).mark_bar(color='#e8513a').encode(
+        x=alt.X("Player_name:N", title='Nick Gracza'),
+        y=alt.Y("Wygrane_bitwy:Q", title='Wygrane bitwy'),
+        tooltip=["Player_name:N", "Epoka:N", "battlesWon:Q", "negotiationsWon:Q"]
+        ).properties(
+            title='Warto skontaktować się z',
+            width=alt.Step(40)  # controls width of bar.
+        ).interactive()
+        
+        tick2 = alt.Chart(gpch_result_catch).mark_tick(
+            color='#47b552',
+            thickness=2,
+            size=40 * 0.45,  # controls width of tick.
+        ).encode(
+            x="Player_name:N",
+            y="forecast:Q"
+        )
+        
+        col1.altair_chart(bar1 + tick1, use_container_width=True)
+        col2.altair_chart(bar2 + tick2, theme="streamlit", use_container_width=True)
+        # col1.bar_chart(gpch_result_all, x="Player_name", y= "Wygrane_bitwy" )
+        # col2.bar_chart(gpch_result_catch, x="Player_name", y= "Wygrane_bitwy" , color="#f24951" )
+    except IndexError as e:
+        st.error("Brak danych do wyświetlenia. Upewnij się, że Dane za GPC są załadowane za wybrany dzień.", icon="🚨")
 
 
 def nk_reports(date_filter):
@@ -530,10 +557,13 @@ def nk_reports(date_filter):
 def guild_stats(date_filter):
     st.subheader('Statystyki Gildii', anchor='guild', divider='rainbow')
     guild_stats_sql = list_guild_stats(date_filter)
-    st.dataframe(guild_stats_sql, use_container_width=True, hide_index=True)
+    st.dataframe(guild_stats_sql, use_container_width=True, hide_index=True,             column_config={
+                            "avatar":  st.column_config.ImageColumn(label="Avatar", width="small")} )
 
 
 def new_approach(date_filter):
+    st.subheader('Rozliczenia GPC', anchor='GPC stats', divider='rainbow')
+
     def highlight_survived(s):
         return ['background-color: #ebd8d8']*len(s) if s.score_1 ==False | s.score_2 ==False else ['background-color: #f5faf2']*len(s)
 
@@ -558,7 +588,8 @@ def new_approach(date_filter):
             st.dataframe(changed_age_players, column_config={
                                     "report_date": st.column_config.DateColumn(label="Data końca GPCh"), 
                                     "playerId": None, 
-                                    "RN": None, 
+                                    "RN": None,
+                                    "avatar":  st.column_config.ImageColumn(label="Avatar", width="small"),
                                     "name": st.column_config.TextColumn(label="Gracz"), 
                                     "player_score": st.column_config.NumberColumn(label="Wygrane Bitwy")
                                 },
@@ -576,11 +607,11 @@ def new_approach(date_filter):
         elif player_activity == 'Wszyscy':
             None
         
-
         st.dataframe(gpc_results.style.apply(highlight_survived, axis=1),column_config={
                                 "report_date": st.column_config.DateColumn(label="Data końca GPCh"), 
                                 "player_id": None, 
                                 "rank": st.column_config.NumberColumn(label="Ranking"), 
+                                "avatar":  st.column_config.ImageColumn(label="Avatar", width="small"),
                                 "Player_name": st.column_config.TextColumn(label="Gracz"), 
                                 "Epoka" : st.column_config.TextColumn(label="Epoka"), 
                                 "GPCH_day" : None, 

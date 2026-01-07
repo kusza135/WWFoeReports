@@ -43,6 +43,7 @@ def get_all_players(world):
                 , world_name
                 , playerId
                 , Player_rank as "Ranking"
+                , avatar
                 , name Gracz
                 , Player_link
                 , ClanId
@@ -72,6 +73,7 @@ def get_player_other_worlds(world, Player_id):
                 , world_name
                 , playerId
                 , Player_rank as "Ranking"
+                , avatar
                 , name Gracz
                 , Player_link
                 , ClanId
@@ -99,6 +101,7 @@ def get_player_activity( Player_id):
     f'''SELECT 
             world
             , playerId
+            , avatar
             , name
             , points as "Punty rankingowe"
             , battles as "Liczba bitew"
@@ -237,6 +240,8 @@ def first_report():
             selected_next_communication_date = col4.date_input(label="Data następnej komunikacji", value=date.today()+ timedelta(days=60), min_value=date.today(), format="YYYY-MM-DD", disabled=False, label_visibility="visible")
        
         col0, col1_tmp, col2_tmp = st.columns([8,22,60])
+        with col0.container():
+            st.image(df_selected_player['avatar'].iloc[0], caption=None)
         with col1_tmp.container():
             # st.write("###")
             st.metric(label="Średnia ilość walk (30 dni)", value=df_selected_player['avg_last_battles'].iloc[0], delta=delta_number_battles, delta_color="normal", help=None, label_visibility="visible")
@@ -445,6 +450,7 @@ def first_report():
             on_select = "rerun",
             selection_mode="single-row",
             column_config={
+                            "avatar":  st.column_config.ImageColumn(label="avatar", width="small"),
                             "Player_link":  st.column_config.LinkColumn(label="Player_link", display_text="ScoreDB link"), 
                             "avg_last_battles": st.column_config.NumberColumn(label="Średnia ilość walk (30 dni)"), 
                             "Prospect": st.column_config.CheckboxColumn(default=False, disabled=True), 

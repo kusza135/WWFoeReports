@@ -48,7 +48,7 @@ def _df_player_activity():
                 , battlesDif as "Różnica bitew"
                 , CAST(DATE_ADD(valid_from, INTERVAL -1 DAY) AS CHAR) as Data_danych
                 , case when f_gpch_day(DATE_ADD(valid_from, INTERVAL -1 DAY)) > 0 then 500 else 0 END GPCh
-            FROM V_all_players
+            FROM M_ALL_PLAYERS
             WHERE 
                 world = '{get_world_id()}'  
                 AND valid_from > DATE_ADD(CURRENT_DATE(), INTERVAL -30 DAY)
@@ -395,7 +395,7 @@ def player_nick_changes(filters):
                         FROM 
                           (SELECT player_id, name, ROW_NUMBER() over (partition by player_id order by valid_to desc) rn FROM V_GUILD_PLAYERS) GP
                         Inner JOIN
-                          V_all_players VAP
+                          M_ALL_PLAYERS VAP
                           ON GP.player_id =  VAP.PLAYERID 
                           and rn = 1
                         WHERE 

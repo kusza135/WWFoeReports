@@ -75,12 +75,12 @@ def param_lottery_exceptions():
                             SELECT x.playerId, name
                             FROM 
                             (
-                                SELECT world, playerId FROM V_all_players WHERE VALID_TO  = '3000-12-31' AND world = '{get_world_id()}' AND ClanId = {get_guild_id()}
+                                SELECT world, playerId FROM M_ALL_PLAYERS WHERE VALID_TO  = '3000-12-31' AND world = '{get_world_id()}' AND ClanId = {get_guild_id()}
                                 UNION 
                                 SELECT world, player_Id FROM t_gpc_lottery_exceptions WHERE world = '{get_world_id()}' AND ClanId = {get_guild_id()}
                             ) as x 
                             LEFT JOIN 
-                                (SELECT world, playerId, name from V_all_players WHERE VALID_TO  = '3000-12-31' AND world = '{get_world_id()}') w
+                                (SELECT world, playerId, name from M_ALL_PLAYERS WHERE VALID_TO  = '3000-12-31' AND world = '{get_world_id()}') w
                                     ON w.world = x.world
                                     and w.playerId = x.playerId  ''', return_type="df")
 
@@ -91,7 +91,7 @@ def param_lottery_exceptions():
                             FROM 
                                 t_gpc_lottery_exceptions ex
                             INNER JOIN 
-                                V_all_players ap
+                                M_ALL_PLAYERS ap
                                 on ap.world  = ex.world
                                 AND ap.ClanId = ex.ClanId
                                 AND ex.Player_id = ap.playerId
@@ -134,12 +134,12 @@ def all_guild_users():
                                 SELECT x.playerId, name
                                 FROM 
                                 (
-                                    SELECT world, playerId FROM V_all_players WHERE VALID_TO  = '3000-12-31' AND world = '{get_world_id()}' AND ClanId = {get_guild_id()}
+                                    SELECT world, playerId FROM M_ALL_PLAYERS WHERE VALID_TO  = '3000-12-31' AND world = '{get_world_id()}' AND ClanId = {get_guild_id()}
                                     UNION 
                                     SELECT world, playerId FROM t_recruters WHERE world = '{get_world_id()}' AND guildid = {get_guild_id()}
                                 ) as x 
                                 LEFT JOIN 
-                                    (SELECT world, playerId, name from V_all_players WHERE VALID_TO  = '3000-12-31' AND world = '{get_world_id()}') w
+                                    (SELECT world, playerId, name from M_ALL_PLAYERS WHERE VALID_TO  = '3000-12-31' AND world = '{get_world_id()}') w
                                         ON w.world = x.world
                                         and w.playerId = x.playerId  ''', return_type="df")
 
@@ -150,7 +150,7 @@ def get_all_recruters():
                                 FROM 
                                     t_recruters x
                                 LEFT JOIN 
-                                    (SELECT world, playerId, name, clanName from V_all_players WHERE VALID_TO  = '3000-12-31' AND world = '{get_world_id()}') w
+                                    (SELECT world, playerId, name, clanName from M_ALL_PLAYERS WHERE VALID_TO  = '3000-12-31' AND world = '{get_world_id()}') w
                                         ON w.world = x.world
                                         and w.playerId = x.playerId  
                                 WHERE 

@@ -6,11 +6,25 @@ from tools.streamlit_tools import execute_query, page_header, get_world_id, get_
 from tools.login import login, check_user_role_permissions
 import os
 import numpy as np
-
+# import time
+# import functools
 
 path = os.path.dirname(__file__)
 
- 
+
+
+# def measure_execution_time(func):
+#     @functools.wraps(func)
+#     def wrapper(*args, **kwargs):
+#         start_time = time.perf_counter()
+#         result = func(*args, **kwargs)
+#         end_time = time.perf_counter()
+#         elapsed = end_time - start_time
+#         st.write(f"{func.__qualname__} executed in {elapsed:.6f} seconds")
+#         return result
+#     return wrapper
+
+
 def get_text(type):
     res = execute_query(f"SELECT msg_text FROM t_tips WHERE msg_type = '{type}' AND valid_to ='3000-12-31'", return_type="df")
     return res.iloc[0]['msg_text']
@@ -110,7 +124,21 @@ AND solvedEncounters < "forecast"
 @st.fragment
 def list_gpch_result_all(date_filter):
     gpch_result_all = execute_query(
-        f'''select 
+        f'''
+WITH all_players
+as
+(
+SELECT 
+	playerId
+	, ClanId
+	, avatar
+FROM 
+	M_ALL_PLAYERS
+WHERE 
+	world = '{get_world_id()}' 
+	AND '{date_filter[0:10]}'  BETWEEN valid_from AND valid_to
+)             
+             select 
                 report_date
                 , player_id
                 , avatar
@@ -125,11 +153,10 @@ def list_gpch_result_all(date_filter):
 from 
     V_GPCH
 LEFT JOIN 
-    V_all_players tap
+    all_players tap
     ON tap.playerId = V_GPCH.player_id
-    AND tap.world = '{get_world_id()}' 
-    AND '{date_filter}'  BETWEEN tap.valid_from AND tap.valid_to
- WHERE report_date = '{date_filter}' 
+    AND guild_id = tap.ClanId
+ WHERE report_date = '{date_filter[0:10]}' 
 
 ''',
         return_type="df",
@@ -151,7 +178,7 @@ def list_gpch_result_catch(date_filter):
                 , forecast
 from V_GPCH 
 where 
-report_date = '{date_filter}' 
+report_date = '{date_filter[0:10]}' 
 AND score < forecast
 ''',
         return_type="df",
@@ -170,7 +197,7 @@ def list_nk_result_all(date_filter):
                 , progressContribution AS "Postęp"
                 , actionPoints AS "Działania"
                 , forecast
-from V_NK where report_date = '{date_filter}'  and world = '{get_world_id()}' and guild_id = {get_guild_id()}
+from V_NK where report_date = '{date_filter[0:10]}'  and world = '{get_world_id()}' and guild_id = {get_guild_id()}
 ''',
         return_type="df",
     )
@@ -188,7 +215,7 @@ def list_nk_result_catch(date_filter):
                 , progressContribution AS "Postęp"
                 , actionPoints AS "Działania"
                 , forecast
-from V_NK where report_date = '{date_filter}'  and world = '{get_world_id()}' and guild_id = {get_guild_id()}
+from V_NK where report_date = '{date_filter[0:10]}'  and world = '{get_world_id()}' and guild_id = {get_guild_id()}
 AND actionPoints < forecast
 ''',
         return_type="df",
@@ -199,9 +226,23 @@ AND actionPoints < forecast
 @st.fragment
 def list_guild_stats(date_filter):
     guild_stats_sql = execute_query(
-        f'''SELECT 
+        f'''
+WITH all_players
+as
+(
+SELECT 
+	playerId
+	, ClanId
+	, avatar
+FROM 
+	M_ALL_PLAYERS
+WHERE 
+	world = '{get_world_id()}' 
+	AND '{date_filter[0:10]}'  BETWEEN valid_from AND valid_to
+)
+        SELECT 
 	V_GUILD_PLAYERS."RANK" AS "Rank"
-    , V_all_players.Avatar
+    , all_players.Avatar
 	, V_GUILD_PLAYERS.name AS "Nick gracza"
 	, V_GUILD_PLAYERS.Age_PL AS "Epoka"
 	, V_GUILD_PLAYERS.won_battles "Wygrane bitwy"
@@ -212,13 +253,10 @@ def list_guild_stats(date_filter):
 FROM 
 	V_GUILD_PLAYERS
 LEFT JOIN 
-    V_all_players
-    ON V_GUILD_PLAYERS.player_id = V_all_players.playerId
-    AND V_all_players.world =  '{get_world_id()}'
-    AND '{date_filter}'  BETWEEN V_all_players.valid_from AND V_all_players.valid_to
+    all_players
+    ON V_GUILD_PLAYERS.player_id = all_players.playerId
 WHERE 
-	'{date_filter}'  BETWEEN V_GUILD_PLAYERS.valid_from  AND V_GUILD_PLAYERS.valid_to
-    
+	'{date_filter[0:10]}'  BETWEEN V_GUILD_PLAYERS.valid_from  AND V_GUILD_PLAYERS.valid_to
 ORDER BY "RANK"
 ''',
         return_type="df"
@@ -290,11 +328,11 @@ FROM
                 , Foe_WW.V_GPCH.name name 
                 ,  max(score) player_score
         FROM 
-            Foe_WW.V_all_players tap
+            Foe_WW.M_ALL_PLAYERS tap
         INNER JOIN 
             Foe_WW.V_GPCH
-            on playerId = player_id 
-            and tap.world =V_GPCH.world
+            on tap.world =V_GPCH.world
+            and playerId = player_id 
             and tap.clanId = V_GPCH.guild_id
         WHERE tap.world  = '{get_world_id()}'
         AND report_date  = '{date_filter[0:10]}' 
@@ -328,7 +366,7 @@ def players_changed_age(date_filter):
                 , Foe_WW.V_GPCH.name name 
                 ,  max(score) player_score
         FROM 
-            Foe_WW.V_all_players tap
+            Foe_WW.M_ALL_PLAYERS tap
         INNER JOIN 
             Foe_WW.V_GPCH
             on playerId = player_id 

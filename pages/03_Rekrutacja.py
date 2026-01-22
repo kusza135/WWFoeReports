@@ -7,10 +7,23 @@ import pandas as pd
 from datetime import date, timedelta
 import numpy as np
 import time
-import json
+# import functools
+# import json
 
 dump_value = "-1z"
 st.session_state['textmsg']= dump_value
+
+# def measure_execution_time(func):
+#     @functools.wraps(func)
+#     def wrapper(*args, **kwargs):
+#         start_time = time.perf_counter()
+#         result = func(*args, **kwargs)
+#         end_time = time.perf_counter()
+#         elapsed = end_time - start_time
+#         st.write(f"{func.__qualname__} executed in {elapsed:.6f} seconds")
+#         return result
+#     return wrapper
+
 
 @st.cache_data(ttl=0)
 def get_prospect_history():
@@ -35,6 +48,7 @@ def get_prospect_history():
                                             '''
     df_prospect_def = execute_query(sql_prospect_def,return_type="df")
     return df_prospect_def
+
 @st.cache_resource(ttl=14400, show_spinner="Pobieranie danych (wszyscy gracze) ...")
 def get_all_players(world):
     all_players_worlds = execute_query(
@@ -57,7 +71,7 @@ def get_all_players(world):
                 , avg_last_points
                 , guild_join_date
                 , valid_to
-            FROM V_all_players
+            FROM M_ALL_PLAYERS
             WHERE
                 world = '{world}'
                 AND valid_to = '3000-12-31'
@@ -65,6 +79,7 @@ def get_all_players(world):
                     return_type="df",
                 )
     return all_players_worlds
+
 @st.cache_resource(ttl=14400, show_spinner="Pobieranie danych (wszyscy gracze) ...")
 def get_player_other_worlds(world, Player_id):
     df_tabs_player_other_worlds = execute_query(
@@ -86,7 +101,7 @@ def get_player_other_worlds(world, Player_id):
                 , avg_last_battles
                 , avg_last_points
                 , valid_to
-            FROM V_all_players
+            FROM M_ALL_PLAYERS
             WHERE 
                 world != '{world}'
                 AND playerId = {Player_id}
@@ -95,6 +110,7 @@ def get_player_other_worlds(world, Player_id):
                     return_type="df",
                 )
     return df_tabs_player_other_worlds
+
 @st.cache_resource(ttl=28800, show_spinner="Pobieranie danych (aktywność graczy) ...")
 def get_player_activity( Player_id):
     player_activity = execute_query(
@@ -109,7 +125,7 @@ def get_player_activity( Player_id):
             , battlesDif as "Różnica bitew"
             , CAST(DATE_ADD(valid_from, INTERVAL -1 DAY) AS CHAR) as Data_danych
             , case when f_gpch_day(DATE_ADD(valid_from, INTERVAL -1 DAY)) > 0 then 500 else 0 END GPCh
-        FROM V_all_players
+        FROM M_ALL_PLAYERS
         WHERE 
             valid_from > DATE_ADD(CURRENT_DATE(), INTERVAL -30 DAY)
             AND playerId = {Player_id}
@@ -119,6 +135,7 @@ def get_player_activity( Player_id):
             )
     return player_activity
 @st.cache_resource(ttl=28800, show_spinner="Pobieranie danych (historia gildii) ...")
+
 def get_player_guild_history(world, Player_id):
     df_player_guild_history = execute_query(
                 f'''SELECT  
@@ -133,18 +150,22 @@ def get_player_guild_history(world, Player_id):
                             return_type="df",
                         ) 
     return df_player_guild_history
+
 @st.cache_resource(ttl=28800, show_spinner="Pobieranie danych (epoki) ...")
 def get_df_ages():
     df_ages = execute_query(f'''SELECT id, Age_PL  FROM t_ages WHERE valid_to = '3000-12-31' ORDER BY id ''',return_type="df")
     return df_ages
+
 @st.cache_resource(ttl=28800, show_spinner="Pobieranie danych (wszystkie gildie) ...")
 def get_guilds(world):
     df_guilds = execute_query(f'''SELECT clanId, name AS Gildia, members  FROM V_all_guilds WHERE world = '{world}' -- and clanId <> {get_guild_id()} ''',return_type="df")
     return df_guilds
+
 @st.fragment
 def get_df_recruters():
     df_recruters = execute_query(f'''SELECT playerId, name, is_active FROM v_recruters WHERE world = '{get_world_id()}' and guildid = {get_guild_id()} ''',return_type="df")
     return df_recruters
+
 @st.fragment
 def get_statuses():
     df_statuses = execute_query(f'''SELECT  status_id, status_Name FROM t_statuses WHERE module_name = 'PROSPECT' ''',return_type="df")

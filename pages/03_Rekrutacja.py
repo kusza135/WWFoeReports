@@ -71,7 +71,7 @@ def get_all_players(world):
                 , avg_last_points
                 , guild_join_date
                 , valid_to
-            FROM M_ALL_PLAYERS
+            FROM V_ALL_PLAYERS
             WHERE
                 world = '{world}'
                 AND valid_to = '3000-12-31'
@@ -101,7 +101,7 @@ def get_player_other_worlds(world, Player_id):
                 , avg_last_battles
                 , avg_last_points
                 , valid_to
-            FROM M_ALL_PLAYERS
+            FROM V_ALL_PLAYERS
             WHERE 
                 world != '{world}'
                 AND playerId = {Player_id}
@@ -125,7 +125,7 @@ def get_player_activity( Player_id):
             , battlesDif as "Różnica bitew"
             , CAST(DATE_ADD(valid_from, INTERVAL -1 DAY) AS CHAR) as Data_danych
             , case when f_gpch_day(DATE_ADD(valid_from, INTERVAL -1 DAY)) > 0 then 500 else 0 END GPCh
-        FROM M_ALL_PLAYERS
+        FROM V_ALL_PLAYERS
         WHERE 
             valid_from > DATE_ADD(CURRENT_DATE(), INTERVAL -30 DAY)
             AND playerId = {Player_id}
@@ -433,6 +433,7 @@ def first_report():
                             "world_name": st.column_config.TextColumn(label="Świat"), 
                             "playerId": st.column_config.TextColumn(label="playerId"), 
                             "Gracz": st.column_config.TextColumn(label="Gracz"), 
+                            "avatar":  st.column_config.ImageColumn(label="avatar", width="small"),
                             "Epoka" : st.column_config.TextColumn(label="Epoka"), 
                             "Gildia" : st.column_config.TextColumn(label="Gildia"), 
                             "Punty rankingowe": st.column_config.TextColumn(label="Punty rankingowe"), 

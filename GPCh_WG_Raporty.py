@@ -133,7 +133,7 @@ SELECT
 	, ClanId
 	, avatar
 FROM 
-	M_ALL_PLAYERS
+	V_ALL_PLAYERS
 WHERE 
 	world = '{get_world_id()}' 
 	AND '{date_filter[0:10]}'  BETWEEN valid_from AND valid_to
@@ -235,7 +235,7 @@ SELECT
 	, ClanId
 	, avatar
 FROM 
-	M_ALL_PLAYERS
+	V_ALL_PLAYERS
 WHERE 
 	world = '{get_world_id()}' 
 	AND '{date_filter[0:10]}'  BETWEEN valid_from AND valid_to
@@ -328,7 +328,7 @@ FROM
                 , Foe_WW.V_GPCH.name name 
                 ,  max(score) player_score
         FROM 
-            Foe_WW.M_ALL_PLAYERS tap
+            Foe_WW.V_ALL_PLAYERS tap
         INNER JOIN 
             Foe_WW.V_GPCH
             on tap.world =V_GPCH.world
@@ -366,7 +366,7 @@ def players_changed_age(date_filter):
                 , Foe_WW.V_GPCH.name name 
                 ,  max(score) player_score
         FROM 
-            Foe_WW.M_ALL_PLAYERS tap
+            Foe_WW.V_ALL_PLAYERS tap
         INNER JOIN 
             Foe_WW.V_GPCH
             on playerId = player_id 

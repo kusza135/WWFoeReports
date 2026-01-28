@@ -234,6 +234,7 @@ SELECT
 	playerId
 	, ClanId
 	, avatar
+    , guild_join_date
 FROM 
 	V_ALL_PLAYERS
 WHERE 
@@ -248,7 +249,7 @@ WHERE
 	, V_GUILD_PLAYERS.won_battles "Wygrane bitwy"
 	, V_GUILD_PLAYERS.score "Punkty"
 	, V_GUILD_PLAYERS.TITLE "Tytuł"
-	, V_GUILD_PLAYERS.join_date "Data przyłączenia"
+	, COALESCE(all_players.guild_join_date, V_GUILD_PLAYERS.join_date) "Data przyłączenia"
 	, V_GUILD_PLAYERS.leave_date AS  "Data opuszczenia"
 FROM 
 	V_GUILD_PLAYERS

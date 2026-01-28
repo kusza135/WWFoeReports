@@ -135,7 +135,6 @@ def get_player_activity( Player_id):
             )
     return player_activity
 @st.cache_resource(ttl=28800, show_spinner="Pobieranie danych (historia gildii) ...")
-
 def get_player_guild_history(world, Player_id):
     df_player_guild_history = execute_query(
                 f'''SELECT  

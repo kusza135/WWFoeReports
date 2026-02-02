@@ -118,7 +118,7 @@ def param_lottery_exceptions():
                                                 , hide_index=True
                                                 , on_select = "rerun"
                                                 , selection_mode="single-row"
-                                                , use_container_width=True
+                                                , width='stretch'
                                             )
         if stored_exceptions.selection['rows']:
             player_id = get_all_exceptions.iloc[stored_exceptions.selection['rows'][0]]['player_id']
@@ -261,7 +261,7 @@ def main():
                         role_permissions_id = roles_permissions[roles_permissions['role_name'] == selected_role_permissions].roleid.iloc[0]
                         if col88.button(label="Przypisz uprawnienia", on_click=exec_sp, args=('p_assign_role',  role_permissions_id,  selected_user_permissions, status_is_active), type="primary"):
                             st.success("Zapisano")
-                st.dataframe(user_permissions[user_permissions['is_active'] == True], use_container_width=True, hide_index=True)
+                st.dataframe(user_permissions[user_permissions['is_active'] == True], width='stretch', hide_index=True)
                 
 
         with tab2.container() as x:
@@ -325,7 +325,7 @@ def main():
                                     if st.button(label="Zapisz Nowy", on_click=exec_sp, args=('p_modify_role',  roles.roleid.max()+1,  input_text, status_is_active), type="primary"):
                                         st.success("Zapisano")
                             
-                        st.dataframe(roles, use_container_width=True, hide_index=True)
+                        st.dataframe(roles, width='stretch', hide_index=True)
                     elif radio_butn == "Przypisz moduł do roli":
                         
                         if roles['roleid'].empty:
@@ -342,7 +342,7 @@ def main():
                             if col321.button(label="Zapisz zmiany!", on_click=exec_sp, args=('p_permissions',  selected_role_id,  selected_module, status_is_active), type="primary"):
                                 st.success("Zapisano")
                         
-                        st.dataframe(permissions, use_container_width=True, hide_index=True)     
+                        st.dataframe(permissions, width='stretch', hide_index=True)     
                         
                         
         with tab3.container() as x:
@@ -366,7 +366,7 @@ def main():
                             col2.button(label="Zapisz", type="primary", on_click=modify_prospect_users, args=(df2, is_active))
                                 # col2.rerun()
 
-                    st.dataframe(get_all_recruters(), column_config={"Aktywny": st.column_config.CheckboxColumn(default=True)}, hide_index=True, use_container_width=True)
+                    st.dataframe(get_all_recruters(), column_config={"Aktywny": st.column_config.CheckboxColumn(default=True)}, hide_index=True, width='stretch')
             
 
         with tab4.container() as x:
@@ -376,7 +376,7 @@ def main():
                 edited_df = st.dataframe(
                 df,
                 hide_index=True,
-                use_container_width=True,
+                width='stretch',
                 on_select = "rerun",
                 selection_mode="single-row",
                 column_config={

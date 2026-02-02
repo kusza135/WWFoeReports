@@ -42,19 +42,19 @@ def cheat_sheet():
                 # st.write(i//4)                
                 if i//4==0:
                     with col1.container():
-                        if st.button(res.iloc[i]['msg_type'], key=f'P1_{i}', help=None, on_click=None, type="secondary", disabled=False, use_container_width=True):
+                        if st.button(res.iloc[i]['msg_type'], key=f'P1_{i}', help=None, on_click=None, type="secondary", disabled=False, width='stretch'):
                             st.session_state['textmsg'] = res.iloc[i]['msg_type']
                 if i//4==1:
                     with col2.container():
-                        if st.button(res.iloc[i]['msg_type'], key=f'P1_{i}', help=None, on_click=None, type="secondary", disabled=False, use_container_width=True):
+                        if st.button(res.iloc[i]['msg_type'], key=f'P1_{i}', help=None, on_click=None, type="secondary", disabled=False, width='stretch'):
                             st.session_state['textmsg'] = res.iloc[i]['msg_type']
                 if i//4==2:
                     with col3.container():
-                        if st.button(res.iloc[i]['msg_type'], key=f'P1_{i}', help=None, on_click=None, type="secondary", disabled=False, use_container_width=True):
+                        if st.button(res.iloc[i]['msg_type'], key=f'P1_{i}', help=None, on_click=None, type="secondary", disabled=False, width='stretch'):
                             st.session_state['textmsg'] = res.iloc[i]['msg_type']
                 if i//4==3:
                     with col4.container():
-                        if st.button(res.iloc[i]['msg_type'], key=f'P1_{i}', help=None, on_click=None, type="secondary", disabled=False, use_container_width=True):
+                        if st.button(res.iloc[i]['msg_type'], key=f'P1_{i}', help=None, on_click=None, type="secondary", disabled=False, width='stretch'):
                             st.session_state['textmsg'] = res.iloc[i]['msg_type']
 
 
@@ -78,19 +78,19 @@ def cheat_sheet():
             for i in res.index:
                 if i//4==0:
                     with col11.container() as x:
-                        if st.button(res.iloc[i]['msg_type'], key=f'P2_{i}', help=None, on_click=None, type="secondary", disabled=False, use_container_width=True):
+                        if st.button(res.iloc[i]['msg_type'], key=f'P2_{i}', help=None, on_click=None, type="secondary", disabled=False, width='stretch'):
                             st.session_state['textmsg'] = res.iloc[i]['msg_type']
                 if i//4==1:
                     with col22.container() as x:
-                        if st.button(res.iloc[i]['msg_type'], key=f'P2_{i}', help=None, on_click=None, type="secondary", disabled=False, use_container_width=True):
+                        if st.button(res.iloc[i]['msg_type'], key=f'P2_{i}', help=None, on_click=None, type="secondary", disabled=False, width='stretch'):
                             st.session_state['textmsg'] = res.iloc[i]['msg_type']
                 if i//4==2:
                     with col33.container() as x:
-                        if st.button(res.iloc[i]['msg_type'], key=f'P2_{i}', help=None, on_click=None, type="secondary", disabled=False, use_container_width=True):
+                        if st.button(res.iloc[i]['msg_type'], key=f'P2_{i}', help=None, on_click=None, type="secondary", disabled=False, width='stretch'):
                             st.session_state['textmsg'] = res.iloc[i]['msg_type']
                 if i//4==3:
                     with col44.container():
-                        if st.button(res.iloc[i]['msg_type'], key=f'P1_{i}', help=None, on_click=None, type="secondary", disabled=False, use_container_width=True):
+                        if st.button(res.iloc[i]['msg_type'], key=f'P1_{i}', help=None, on_click=None, type="secondary", disabled=False, width='stretch'):
                             st.session_state['textmsg'] = res.iloc[i]['msg_type']
 
             

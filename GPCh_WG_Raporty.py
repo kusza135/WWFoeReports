@@ -432,9 +432,9 @@ def wg_reports(date_filter):
 
         
         if (wg_result_all.iloc[0]['WG_day'] <7 and wg_result_all.iloc[0]['WG_day'] >0): 
-            st.markdown(f"*Wyprawy Gildyjne* są :large_green_circle::large_green_circle: :green[w trakcie] :large_green_circle::large_green_circle: day({wg_result_all.iloc[0]['WG_day']}).")
+            st.markdown(f"*Wyprawy Gildyjne* są 🟢🟢 :green[w trakcie] 🟢🟢 day({wg_result_all.iloc[0]['WG_day']}).")
         else:  
-            st.markdown("*Wyprawy Gildyjne* są :red_circle: :red[zakończone] :red_circle:.")
+            st.markdown("*Wyprawy Gildyjne* są 🔴 :red[zakończone] 🔴.")
             
         col1, col2 = st.columns([1, 1])
 
@@ -476,8 +476,8 @@ def wg_reports(date_filter):
             x="Player_name",
             y="forecast"
         )
-        col1.altair_chart(bar1 + tick1, use_container_width=True)
-        col2.altair_chart(bar2 + tick2, theme="streamlit", use_container_width=True)
+        col1.altair_chart(bar1 + tick1, width='stretch')
+        col2.altair_chart(bar2 + tick2, theme="streamlit", width='stretch')
         # col1.bar_chart(wg_result_all, x="Player_name", y= "Wygrane_bitwy" )
         #col2.bar_chart(wg_result_catch, x="Player_name", y= "Wygrane_bitwy", color="#f24951" )
     except IndexError as e:
@@ -489,9 +489,9 @@ def gpch_reports(date_filter):
         gpch_result_all = list_gpch_result_all(date_filter)
         gpch_result_catch = list_gpch_result_catch(date_filter)
         if (gpch_result_all.iloc[0]['GPCH_day'] <12 and gpch_result_all.iloc[0]['GPCH_day']>0): 
-            st.markdown(f"*Pola Chwały* są :large_green_circle::large_green_circle: :green[w trakcie] :large_green_circle::large_green_circle: day({gpch_result_all.iloc[0]['GPCH_day']}).")
+            st.markdown(f"*Pola Chwały* są 🟢🟢 :green[w trakcie] 🟢🟢 day({gpch_result_all.iloc[0]['GPCH_day']}).")
         else:  
-            st.markdown("*Pola Chwały* są :red_circle: :red[zakończone] :red_circle:.")
+            st.markdown("*Pola Chwały* są 🔴 :red[zakończone] 🔴.")
         col1, col2 = st.columns([1, 1])
         
         bar1 = alt.Chart(gpch_result_all).mark_bar().encode(
@@ -530,8 +530,8 @@ def gpch_reports(date_filter):
             y="forecast:Q"
         )
         
-        col1.altair_chart(bar1 + tick1, use_container_width=True)
-        col2.altair_chart(bar2 + tick2, theme="streamlit", use_container_width=True)
+        col1.altair_chart(bar1 + tick1, width='stretch')
+        col2.altair_chart(bar2 + tick2, theme="streamlit", width='stretch')
         # col1.bar_chart(gpch_result_all, x="Player_name", y= "Wygrane_bitwy" )
         # col2.bar_chart(gpch_result_catch, x="Player_name", y= "Wygrane_bitwy" , color="#f24951" )
     except IndexError as e:
@@ -544,9 +544,9 @@ def nk_reports(date_filter):
         nk_result_all = list_nk_result_all(date_filter)
         nk_result_catch = list_nk_result_catch(date_filter)
         if (nk_result_all.iloc[0]['NK_day'] <12 and nk_result_all.iloc[0]['NK_day']>0): 
-            st.markdown(f"*Najazdy Kwantowe* są :large_green_circle::large_green_circle: :green[w trakcie] :large_green_circle::large_green_circle: day({nk_result_all.iloc[0]['NK_day']}).")
+            st.markdown(f"*Najazdy Kwantowe* są 🟢🟢 :green[w trakcie] 🟢🟢 day({nk_result_all.iloc[0]['NK_day']}).")
         else:  
-            st.markdown("*Najazdy Kwantowe* są :red_circle: :red[zakończone] :red_circle:.")
+            st.markdown("*Najazdy Kwantowe* są 🔴 :red[zakończone] 🔴.")
         col1, col2 = st.columns([1, 1])
         
         bar1 = alt.Chart(nk_result_all).mark_bar().encode(
@@ -585,8 +585,8 @@ def nk_reports(date_filter):
             y="forecast:Q"
         )
         
-        col1.altair_chart(bar1 + tick1, use_container_width=True)
-        col2.altair_chart(bar2 + tick2, theme="streamlit", use_container_width=True)
+        col1.altair_chart(bar1 + tick1, width='stretch')
+        col2.altair_chart(bar2 + tick2, theme="streamlit", width='stretch')
     except IndexError as e:
         st.error("Brak danych do wyświetlenia. Upewnij się, że Najazdy Kwantowe są aktywne lub zakończone w wybranym dniu.", icon="🚨")
         # st.stop()
@@ -596,7 +596,7 @@ def nk_reports(date_filter):
 def guild_stats(date_filter):
     st.subheader('Statystyki Gildii', anchor='guild', divider='rainbow')
     guild_stats_sql = list_guild_stats(date_filter)
-    st.dataframe(guild_stats_sql, use_container_width=True, hide_index=True,             column_config={
+    st.dataframe(guild_stats_sql, width='stretch', hide_index=True,             column_config={
                             "avatar":  st.column_config.ImageColumn(label="Avatar", width="small")} )
 
 
@@ -633,7 +633,7 @@ def new_approach(date_filter):
                                     "player_score": st.column_config.NumberColumn(label="Wygrane Bitwy")
                                 },
                         hide_index=True
-                        , use_container_width=True)
+                        , width='stretch')
 
         gpc_results = list_gpch_result_all(date_filter)
         gpc_results['score_1'] = np.where(gpc_results['Wygrane_bitwy']< gpc_leader['player_score'].iloc[0]*perc_ind, False, True)
@@ -662,7 +662,7 @@ def new_approach(date_filter):
                                 "score_2": st.column_config.CheckboxColumn(label=f"Znacznik Aktywności - {gpc_leader2['name'].iloc[0]} ({int(round(gpc_leader2['player_score'].iloc[0]*perc_ind2, 0))})")
                             },
                     hide_index=True
-                    , use_container_width=True)
+                    , width='stretch')
 
 
 
@@ -678,7 +678,7 @@ def check_nick_name_change():
     qry = list_change_nick_name()
     if not qry.empty:
         st.warning('Poniżej gracze którzy zmienili nick', icon="⚠️")
-        st.dataframe(qry, hide_index=True, use_container_width=True)
+        st.dataframe(qry, hide_index=True, width='stretch')
 
 
 

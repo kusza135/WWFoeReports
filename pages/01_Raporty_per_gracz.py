@@ -102,7 +102,7 @@ def tabs_player_activity(Player_id):
         ).encode(
             text=f"{ops}:Q",
             )
-    st.altair_chart(c.interactive() + tick1 + text, use_container_width=True)   
+    st.altair_chart(c.interactive() + tick1 + text, width='stretch')   
     
     
 def wg_player_stats(filters):
@@ -169,7 +169,7 @@ def wg_player_stats(filters):
         ).encode(
             text='Player_name:N'
         )
-        st.altair_chart(bars + text, theme=None, use_container_width=True)
+        st.altair_chart(bars + text, theme=None, width='stretch')
         
 def gpch_player_stats(filters):
         gpch_result_all = execute_query(
@@ -232,7 +232,7 @@ def gpch_player_stats(filters):
         ).encode(
             text='Player_name:N'
         )
-        st.altair_chart(bars + text, theme=None, use_container_width=True)
+        st.altair_chart(bars + text, theme=None, width='stretch')
         
 def nk_player_stats(filters):
         nk_result_all = execute_query(
@@ -294,7 +294,7 @@ def nk_player_stats(filters):
         ).encode(
             text='Player_name:N'
         )
-        st.altair_chart(bars + text, theme=None, use_container_width=True)
+        st.altair_chart(bars + text, theme=None, width='stretch')
    
 
         
@@ -356,7 +356,7 @@ def guild_player_history(filters):
                     guild_hist_sql = execute_query(query, return_type="df")
 
            
-        st.dataframe(guild_hist_sql[guild_hist_sql['player_id'].isin(filters)], use_container_width=True, hide_index=True)
+        st.dataframe(guild_hist_sql[guild_hist_sql['player_id'].isin(filters)], width='stretch', hide_index=True)
      
 def list_notes_for_users(filters):
         query = f'''

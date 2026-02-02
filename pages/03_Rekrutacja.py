@@ -334,7 +334,7 @@ def first_report():
                         "status_id" : None,
                         "recriterid" : None
                         },
-                    use_container_width=True, hide_index= True)
+                    width='stretch', hide_index= True)
 
     def exl_guids(df_guilds) -> list:
         modification_container = st.container()
@@ -425,7 +425,7 @@ def first_report():
                 ).encode(
                     text=f"{ops}:Q",
                     )
-            st.altair_chart(c.interactive() + tick1 + text, use_container_width=True)    
+            st.altair_chart(c.interactive() + tick1 + text, width='stretch')    
         
     def tabs_player_other_worlds(df_tabs_player_other_worlds, Player_id):
         st.dataframe(df_tabs_player_other_worlds[df_tabs_player_other_worlds['playerId'] == Player_id],  column_config={
@@ -450,13 +450,13 @@ def first_report():
                             "Status": None,
                             "valid_to": None
                         }
-                     , use_container_width=True, hide_index= True)
+                     , width='stretch', hide_index= True)
         
     def guild_history(df_player_guild_history, Player_id):
         st.info("Dane dostępne od 2024-02-01 ")
         st.dataframe(
                 df_player_guild_history[df_player_guild_history['playerId'] == Player_id].sort_values(by=["Data dołączenia"], ascending=True)
-                , use_container_width=True
+                , width='stretch'
                 , hide_index= True
                 , column_config={"playerId" : None}
                 )
@@ -467,7 +467,7 @@ def first_report():
         edited_df = st.dataframe(
             df,
             hide_index=True,
-            use_container_width=True,
+            width='stretch',
             on_select = "rerun",
             selection_mode="single-row",
             column_config={

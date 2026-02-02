@@ -76,7 +76,7 @@ def db_change_pwd(UserName, Password):
 
 def reset_password(authenticator):
     try:
-        x = authenticator.reset_password(st.session_state["username"], 'Zresetuj hasło')
+        x = authenticator.reset_password(st.session_state["username"], location='main')
         if x == True:
             new_password = authenticator.credentials['usernames'][st.session_state["username"]]['password']
             return new_password, x
@@ -108,30 +108,28 @@ def login():
     for name,uname,pwd in zip(UserNames,users,passwords):
         user_dict = {"name": name, "password": pwd}
         credentials["usernames"].update({uname: user_dict})
-    
-    authenticator = stauth.Authenticate(credentials, "foeWW", "WzgFoeWWtheKing", cookie_expiry_days=30, preauthorized=['adamus01@gmail.com'])
 
+    authenticator = stauth.Authenticate(credentials=credentials, cookie_key="foeWW", cookie_name="WzgFoeWWtheKing", cookie_expiry_days=30, preauthorized=['adamus01@gmail.com'])
 
-    name, authenticator_status, username = authenticator.login("Logowanie", "main")
+    authenticator.login(location='main')
 
-
-    if authenticator_status == False:
+    if st.session_state['authentication_status'] == False:
         st.error("Nieprawidłowy Login/hasło")
-    if authenticator_status == None:
+    if st.session_state['authentication_status'] == None:
         st.warning("Wprowadź Login/hasło")
-    if authenticator_status == True:
-        st.session_state.authenticator_status = authenticator_status
+    if st.session_state['authentication_status'] == True:
+        st.session_state.authentication_status = st.session_state['authentication_status']
         if 'role' not in st.session_state:
-            st.session_state['role'] = get_user_role_from_db(username)
-        display_logged_user(name)
+            st.session_state['role'] = get_user_role_from_db(st.session_state['username'])
+        display_logged_user(st.session_state['name'])
         # change_pwd(authenticator)
     
 
     if authenticator.logout('Logout', 'sidebar'):
         st.cache_data.clear()
         st.cache_resource.clear()
-        st.rerun
-    return authenticator, users, username
+        st.rerun()
+    return authenticator, users, st.session_state['username']
 
 
 

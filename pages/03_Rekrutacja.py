@@ -570,13 +570,13 @@ def run_reports():
         
 if __name__ == '__main__':
     page_header()
-    if 'authenticator_status' not in st.session_state:
-        st.session_state.authenticator_status = None
+    if 'authentication_status' not in st.session_state:
+        st.session_state.authentication_status = None
 
     authenticator, users, username  = login()
     if username:
-        # st.write(st.session_state['authenticator_status'])
-        if st.session_state['authenticator_status']:
+        # st.write(st.session_state['authentication_status'])
+        if st.session_state['authentication_status']:
             if check_user_role_permissions(username, 'RECRUIT') == True:
                 run_reports()   
             else:

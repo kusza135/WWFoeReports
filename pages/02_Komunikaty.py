@@ -149,8 +149,8 @@ if __name__ == '__main__':
     page_header()
     authenticator, users, username  = login()
     if username:
-        # st.write(st.session_state['authenticator_status'])
-        if st.session_state['authenticator_status']:
+        # st.write(st.session_state['authentication_status'])
+        if st.session_state['authentication_status']:
             if check_user_role_permissions(username, 'MESSAGES') == True:
                 run_reports()   
             else:

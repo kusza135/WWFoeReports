@@ -201,7 +201,7 @@ def main():
             if options == "Nowy Użytkownik":
                 with col2.container():
             # with col1.expander(label="Create New User") as cnu:
-                    x = authenticator.register_user('Uzupełnij dane', preauthorization=False)
+                    x = authenticator.register_user(location='main', fields={'Form name':'Register user', 'Email':'Email', 'Username':'Username', 'Password':'Password', 'Repeat password':'Repeat password', 'Register':'Register'}, captcha=False, password_hint=False)
                     if x == True :
                         # userName = 
                         for names in authenticator.credentials['usernames']:

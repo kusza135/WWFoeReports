@@ -123,13 +123,13 @@ def login():
             st.session_state['role'] = get_user_role_from_db(st.session_state['username'])
         display_logged_user(st.session_state['name'])
         # change_pwd(authenticator)
-    
-
-    if authenticator.logout('Logout', 'sidebar'):
-        st.cache_data.clear()
-        st.cache_resource.clear()
-        st.rerun()
+        if authenticator.logout(button_name='Logout',location='sidebar'):
+            st.cache_data.clear()
+            st.cache_resource.clear()
+            st.rerun()
     return authenticator, users, st.session_state['username']
+
+
 
 
 

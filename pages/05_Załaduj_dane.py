@@ -87,7 +87,9 @@ def load_file(Load_Method, File_type, visibility = True):
 
             elif File_type == gpch:
                 data = pd.json_normalize(string_data)
+                data.drop(columns=['__class__'], inplace=True)
                 data.columns = data.columns.str.lstrip('player\.')
+                data.drop(columns=['__class__'], inplace=True)
             return data
         except:
             if not uploaded_file == "":
@@ -338,7 +340,6 @@ def main():
                         nk_data = load_file(Load_Method, nk, False)
                     else:  
                         nk_data = load_file(Load_Method, nk, True)
-
                 
                 if  ( (load_type == True and ((wg_gpch_daily_run == True and guildPlayers_data is not None and gpch_data is not None and wg_data is not None and nk_data is not None ) \
                        or (wg_gpch_daily_run == False  and (guildPlayers_data is not None or gpch_data is not None or wg_data is not None or nk_data is not None ))))) \

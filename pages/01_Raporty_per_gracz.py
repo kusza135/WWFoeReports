@@ -1,459 +1,496 @@
 import streamlit as st
-from PIL import Image
+import altair as alt
 from tools.streamlit_tools import execute_query, page_header, get_world_id, get_guild_id
-# import pandas as pd
-import  altair as alt
 from tools.login import login, check_user_role_permissions
-import os
+
+# ---------------------------------------------------------------------------
+# WARSTWA DANYCH — cache, zero UI, parametryzowane zapytania
+# ---------------------------------------------------------------------------
+
+@st.cache_data(ttl=3600)
+def get_player_list() -> list:
+    """Lista graczy do filtra — cache 1h, zmienia sie rzadko."""
+    df = execute_query(
+        """SELECT DISTINCT player_id, name AS Player_name
+           FROM V_GUILD_PLAYERS
+           ORDER BY Player_name
+        """,
+        return_type="df",
+    )
+    return df
 
 
-path = os.path.dirname(__file__)
-
-def filter_Setup() -> list:
-
-    modification_container = st.container()
-
-    with modification_container:
-        filters = []
-        df= execute_query(f'''
-                          SELECT 
-                            DISTINCT 
-                                player_id,
-                                name as "Player_name"
-                            FROM
-                                V_GUILD_PLAYERS
-                          ''',
-                    return_type="df",
-                )
-        to_filter_columns = st.multiselect("Wybierz nick gracza", df.Player_name.sort_values().unique(), max_selections =4, placeholder="Rozwiń lub zacznij wpisywać")
-        for row in to_filter_columns:
-            df2=df.loc[df['Player_name'] == row, 'player_id'].iloc[0]
-            filters.append(df2)
-
-        # df = df[df['player_id'].isin(filters)]
-
-    return filters
-
-# @st.cache_resource(ttl=14400, experimental_allow_widgets=True, show_spinner="Pobieranie danych ...")
-@st.fragment()
-def _df_player_activity():
-    df_tabs_player_activity = execute_query(
-        f'''SELECT 
-                world
-                , playerId
-                , name
-                , points as "Punty rankingowe"
-                , battles as "Liczba bitew"
-                , pointsDif as "Różnica punktów rankingowych"
-                , battlesDif as "Różnica bitew"
-                , CAST(DATE_ADD(valid_from, INTERVAL -1 DAY) AS CHAR) as Data_danych
-                , case when f_gpch_day(DATE_ADD(valid_from, INTERVAL -1 DAY)) > 0 then 500 else 0 END GPCh
+@st.cache_data(ttl=1800)
+def get_player_activity() -> object:
+    """Aktywnosc wszystkich graczy gildii z 30 dni — filtrowanie po playerId w pamięci."""
+    return execute_query(
+        """SELECT
+                world, playerId, name,
+                points AS `Punty rankingowe`,
+                battles AS `Liczba bitew`,
+                pointsDif AS `Roznica punktow rankingowych`,
+                battlesDif AS `Roznica bitew`,
+                CAST(DATE_ADD(valid_from, INTERVAL -1 DAY) AS CHAR) AS Data_danych,
+                CASE WHEN f_gpch_day(DATE_ADD(valid_from, INTERVAL -1 DAY)) > 0
+                     THEN 500 ELSE 0 END AS GPCh
             FROM V_ALL_PLAYERS
-            WHERE 
-                world = '{get_world_id()}'  
-                AND valid_from > DATE_ADD(CURRENT_DATE(), INTERVAL -30 DAY)
-                AND ClanId = '{get_guild_id()}'
-            ''',
-                    return_type="df",
-                )
-    return df_tabs_player_activity
+            WHERE world = :world
+              AND valid_from > DATE_ADD(CURRENT_DATE(), INTERVAL -30 DAY)
+              AND ClanId = :guild_id
+        """,
+        params={"world": get_world_id(), "guild_id": get_guild_id()},
+        return_type="df",
+    )
 
-def tabs_player_activity(Player_id):
-    df_tabs_player_activity = _df_player_activity()
-    
-    ops = st.radio(label="Wybierz metryki:", options=['Punty rankingowe', 'Liczba bitew', 'Różnica punktów rankingowych', 'Różnica bitew'], horizontal=True, index=3)
-    # st.dataframe(tabs_player_activity)
-    # pl_name = df_tabs_player_activity[df_tabs_player_activity['playerId'] == Player_id]["name"].iloc[0]
-    c= alt.Chart(df_tabs_player_activity[df_tabs_player_activity['playerId'].isin(Player_id)]).mark_line(
-                            point=alt.OverlayMarkDef(filled=True, size=25)
-                                    ).encode(
-                                        x=alt.X("Data_danych", title='Data danych'),
-                                        y=alt.Y(ops, title=ops),
-                                        # color='name:N', 
-                                        color=alt.Color('name:N', legend=alt.Legend(
-                                                                        orient='none',
-                                                                        legendX=450, legendY=-47,
-                                                                        direction='horizontal',
-                                                                        titleAnchor='middle')), 
-                                        # xOffset="name:N",
-                                        tooltip=ops
-                                    ).properties(
-                                                title=f"Historia gry z ostatnich 30 dni"
-                                                , height=450
-                                                # , width='container'  # controls width of bar.
-                                            )
-    # bars = c.mark_line().encode(
-    #        ,
-    #     )
-    tick1 = alt.Chart(df_tabs_player_activity[df_tabs_player_activity['playerId'].isin(Player_id)]).mark_tick(
-        color='purple',
-        thickness=2,
-        size=40 * 0.45,  # controls width of tick.
-    ).encode(
-        x="Data_danych",
-        y="GPCh"
-    ).properties(title="dzień GPCh")
-    text = c.mark_text(
-        align='center'
-        , baseline='top'
-        , color="black"
-        , fontSize = 13
-        , dy=-30  # Nudges text to right so it doesn't appear on top of the bar
-        ).encode(
-            text=f"{ops}:Q",
-            )
-    st.altair_chart(c.interactive() + tick1 + text, width='stretch')   
-    
-    
-def wg_player_stats(filters):
-        wg_result_all = execute_query(
-        f'''select 
-                Player_id
-                , CAST(report_date AS CHAR) AS Report_date
-                , name as "Player_name"
-                , Age_PL as "Epoka"
-                , wg_date_of_day as "WG_day"
-                , expeditionPoints
-                , solvedEncounters AS "Wygrane_bitwy"
-                ,  "WG_LEVEL"
-                , currentTrial AS "Próba"
-                , "forecast"
-            from V_WG
+
+@st.cache_data(ttl=1800)
+def get_wg_stats() -> object:
+    """Statystyki WG — tylko zakonczone edycje + pierwsza edycja."""
+    return execute_query(
+        """SELECT
+                player_id, CAST(report_date AS CHAR) AS Report_date,
+                name AS Player_name, Age_PL AS Epoka,
+                wg_date_of_day AS WG_day, expeditionPoints,
+                solvedEncounters AS Wygrane_bitwy,
+                WG_LEVEL, currentTrial AS Proba, forecast
+            FROM V_WG
             WHERE wg_date_of_day = 0
-            AND world = '{get_world_id()}'
-            AND guild_id = {get_guild_id()}
+              AND world = :world AND guild_id = :guild_id
             UNION ALL
-            select 
-                Player_id
-                , CAST(a.report_date AS CHAR) AS Report_date
-                , name as "Player_name"
-                , Age_PL as "Epoka"
-                , wg_date_of_day as "WG_day"
-                , expeditionPoints
-                , solvedEncounters AS "Wygrane_bitwy"
-                ,  "WG_LEVEL"
-                , currentTrial AS "Próba"
-                , "forecast"
-            from V_WG a
-            INNER JOIN 
-            	(SELECT MIN(report_date) as report_date FROM V_WG WHERE world = '{get_world_id()}' AND guild_id = {get_guild_id()}) c
-            	ON a.report_date = c.report_date
-            WHERE 
-                a.world = '{get_world_id()}'
-            AND a.guild_id = {get_guild_id()}
-            ''',
-                    return_type="df",
-                )
-        wg_result_all = wg_result_all[wg_result_all['player_id'].isin(filters)]
-        
-        
-        base=alt.Chart(wg_result_all).mark_bar(strokeWidth=1).encode(
-            x=alt.X('Report_date:N', axis = alt.Axis(title = 'Data zakończenia WG', labelAngle=5)),
-            y='Wygrane_bitwy:Q',
+            SELECT
+                player_id, CAST(a.report_date AS CHAR) AS Report_date,
+                name AS Player_name, Age_PL AS Epoka,
+                wg_date_of_day AS WG_day, expeditionPoints,
+                solvedEncounters AS Wygrane_bitwy,
+                WG_LEVEL, currentTrial AS Proba, forecast
+            FROM V_WG a
+            INNER JOIN (
+                SELECT MIN(report_date) AS report_date
+                FROM V_WG WHERE world = :world AND guild_id = :guild_id
+            ) c ON a.report_date = c.report_date
+            WHERE a.world = :world AND a.guild_id = :guild_id
+        """,
+        params={"world": get_world_id(), "guild_id": get_guild_id()},
+        return_type="df",
+    )
+
+
+@st.cache_data(ttl=1800)
+def get_gpch_stats() -> object:
+    """Statystyki GPCh — tylko zakonczone edycje + pierwsza edycja."""
+    return execute_query(
+        """SELECT
+                player_id, CAST(report_date AS CHAR) AS Report_date,
+                name AS Player_name, Age_PL AS Epoka,
+                GPCH_DATE_OF_DAY AS GPCH_day, `RANK`,
+                battlesWon AS Wygrane_bitwy,
+                negotiationsWon AS Wygrane_negocjacje,
+                score, Forecast
+            FROM V_GPCH
+            WHERE GPCH_DATE_OF_DAY = 0
+              AND world = :world AND guild_id = :guild_id
+            UNION ALL
+            SELECT
+                player_id, CAST(a.report_date AS CHAR) AS Report_date,
+                name AS Player_name, Age_PL AS Epoka,
+                GPCH_DATE_OF_DAY AS GPCH_day, `RANK`,
+                battlesWon AS Wygrane_bitwy,
+                negotiationsWon AS Wygrane_negocjacje,
+                score, Forecast
+            FROM V_GPCH a
+            INNER JOIN (
+                SELECT MIN(report_date) AS report_date
+                FROM V_GPCH WHERE world = :world AND guild_id = :guild_id
+            ) c ON a.report_date = c.report_date
+            WHERE a.world = :world AND a.guild_id = :guild_id
+        """,
+        params={"world": get_world_id(), "guild_id": get_guild_id()},
+        return_type="df",
+    )
+
+
+@st.cache_data(ttl=1800)
+def get_nk_stats() -> object:
+    """Statystyki NK — tylko zakonczone edycje + pierwsza edycja."""
+    return execute_query(
+        """SELECT DISTINCT player_id,
+                CAST(report_date AS CHAR) AS Report_date,
+                name AS Player_name, Age_PL AS Epoka,
+                NK_DATE_OF_DAY AS NK_day,
+                progressContribution AS Postep,
+                actionPoints AS Dzialania
+            FROM V_NK
+            WHERE NK_DATE_OF_DAY = 0
+              AND world = :world AND guild_id = :guild_id
+            UNION ALL
+            SELECT DISTINCT player_id,
+                CAST(a.report_date AS CHAR) AS Report_date,
+                name AS Player_name, Age_PL AS Epoka,
+                NK_DATE_OF_DAY AS NK_day,
+                progressContribution AS Postep,
+                actionPoints AS Dzialania
+            FROM V_NK a
+            INNER JOIN (
+                SELECT MIN(report_date) AS report_date
+                FROM V_NK WHERE world = :world AND guild_id = :guild_id
+            ) c ON a.report_date = c.report_date
+            WHERE a.world = :world AND a.guild_id = :guild_id
+        """,
+        params={"world": get_world_id(), "guild_id": get_guild_id()},
+        return_type="df",
+    )
+
+
+@st.cache_data(ttl=1800)
+def get_guild_player_history() -> object:
+    return execute_query(
+        """SELECT
+                a.player_id, a.`rank`, a.name AS Player_name,
+                a.score, a.won_battles, a.Age_PL AS Epoka,
+                title,
+                CASE permissions
+                    WHEN 126 THEN 'Zarzadzanie GPCh'
+                    WHEN 127 THEN 'Zarzadzanie Gildia'
+                END AS Uprawnienia,
+                Join_date, leave_date, valid_from, valid_to
+            FROM V_GUILD_PLAYERS a
+            ORDER BY Valid_from
+        """,
+        return_type="df",
+    )
+
+
+@st.cache_data(ttl=1800)
+def get_notes() -> object:
+    return execute_query(
+        """SELECT player_id, Player_name, notka
+           FROM (
+               SELECT a.player_id, a.name AS Player_name, notka,
+                      ROW_NUMBER() OVER (PARTITION BY a.player_id ORDER BY VALID_TO DESC) AS RN
+               FROM V_GUILD_PLAYERS a
+               WHERE notka IS NOT NULL
+           ) x
+           WHERE RN = 1
+        """,
+        return_type="df",
+    )
+
+
+@st.cache_data(ttl=1800)
+def get_nick_changes() -> object:
+    return execute_query(
+        """SELECT GP.player_id, GP.name AS OLD_NAME, VAP.name AS CURRENT_NAME
+           FROM (
+               SELECT player_id, name,
+                      ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY valid_to DESC) AS rn
+               FROM V_GUILD_PLAYERS
+           ) GP
+           INNER JOIN V_ALL_PLAYERS VAP
+               ON GP.player_id = VAP.PLAYERID AND rn = 1
+           WHERE VAP.VALID_TO = '3000-12-31'
+             AND VAP.WORLD = :world
+             AND GP.name <> VAP.name
+        """,
+        params={"world": get_world_id()},
+        return_type="df",
+    )
+
+
+# ---------------------------------------------------------------------------
+# HELPERY
+# ---------------------------------------------------------------------------
+
+def add_note(player_id: int, note: str) -> None:
+    execute_query(
+        "CALL p_notes(:player_id, :note)",
+        params={"player_id": player_id, "note": note},
+        return_type="df",
+    )
+    get_notes.clear()
+    get_guild_player_history.clear()
+    st.toast("Dane zapisane", icon="✅")
+
+
+# ---------------------------------------------------------------------------
+# FILTR GRACZY
+# ---------------------------------------------------------------------------
+
+def filter_setup() -> list:
+    df = get_player_list()
+    selected = st.multiselect(
+        "Wybierz nick gracza",
+        df.Player_name.sort_values().unique(),
+        max_selections=4,
+        placeholder="Rozwij lub zacznij wpisywac",
+    )
+    if not selected:
+        return []
+    return df.loc[df["Player_name"].isin(selected), "player_id"].tolist()
+
+
+# ---------------------------------------------------------------------------
+# SEKCJE UI — kazda jako @st.fragment
+# ---------------------------------------------------------------------------
+
+@st.fragment
+def section_nick_changes(filters: list) -> None:
+    if not filters:
+        return
+    df = get_nick_changes()
+    changed = df[df["player_id"].isin(filters)]
+    for _, row in changed.iterrows():
+        st.info(
+            f"Gracz **{row['OLD_NAME']}** zmienil nick na **{row['CURRENT_NAME']}**",
+            icon="ℹ️",
+        )
+
+
+@st.fragment
+def section_notes(filters: list) -> None:
+    if not filters:
+        return
+    df = get_notes()
+    player_notes = df[df["player_id"].isin(filters)]
+    for _, row in player_notes.iterrows():
+        st.warning(
+            f"Gracz **{row['Player_name']}** ma zapisana notatke:\n\n{row['notka']}\n",
+            icon="⚠️",
+        )
+
+
+@st.fragment
+def section_activity(filters: list) -> None:
+    if not filters:
+        st.info("Wybierz gracza w filtrze powyzej.")
+        return
+
+    df_all = get_player_activity()
+    df = df_all[df_all["playerId"].isin(filters)]
+
+    if df.empty:
+        st.warning("Brak danych aktywnosci dla wybranych graczy.")
+        return
+
+    metric = st.radio(
+        "Wybierz metryki:",
+        options=[
+            "Punty rankingowe", "Liczba bitew",
+            "Roznica punktow rankingowych", "Roznica bitew",
+        ],
+        horizontal=True,
+        index=3,
+    )
+
+    line = (
+        alt.Chart(df)
+        .mark_line(point=alt.OverlayMarkDef(filled=True, size=25))
+        .encode(
+            x=alt.X("Data_danych", title="Data danych"),
+            y=alt.Y(metric, title=metric),
+            color=alt.Color(
+                "name:N",
+                legend=alt.Legend(
+                    orient="none", legendX=450, legendY=-47,
+                    direction="horizontal", titleAnchor="middle",
+                ),
+            ),
+            tooltip=metric,
+        )
+        .properties(title="Historia gry z ostatnich 30 dni", height=450)
+    )
+    ticks = (
+        alt.Chart(df)
+        .mark_tick(color="purple", thickness=2, size=18)
+        .encode(x="Data_danych", y="GPCh")
+        .properties(title="dzien GPCh")
+    )
+    labels = line.mark_text(
+        align="center", baseline="top", color="black", fontSize=13, dy=-30
+    ).encode(text=f"{metric}:Q")
+
+    st.altair_chart((line + ticks + labels).interactive(), width="stretch")
+
+
+@st.fragment
+def section_wg(filters: list) -> None:
+    if not filters:
+        return
+
+    df_all = get_wg_stats()
+    df = df_all[df_all["player_id"].isin(filters)]
+
+    if df.empty:
+        st.warning("Brak danych WG dla wybranych graczy.")
+        return
+
+    base = (
+        alt.Chart(df)
+        .mark_bar(strokeWidth=1)
+        .encode(
+            x=alt.X("Report_date:N", axis=alt.Axis(title="Data zakonczenia WG", labelAngle=5)),
+            y="Wygrane_bitwy:Q",
             xOffset="Player_name:N",
-            tooltip=["Player_name:N", "Report_date", "Epoka", "WG_LEVEL", "Wygrane_bitwy", "Próba"]
-            # column=alt.Column('report_date:T', title="", spacing =1), #spacing =0 removes space between columns, column for can and st 
-        ).properties( title='Statystyka wszystkich edycji WG gracza/y'
-            , width=alt.Step(10)).interactive()
-        # .configure_header(labelOrient='bottom').configure_view(
-        #     strokeOpacity=1)
-        
-        bars = base.mark_bar().encode(
-            color='Player_name:N',
+            color="Player_name:N",
+            tooltip=["Player_name:N", "Report_date", "Epoka", "WG_LEVEL", "Wygrane_bitwy", "Proba"],
         )
-        text = base.mark_text(
-            align='center',
-            baseline='top'
-            , color="black"
-            , dy=-30  # Nudges text to right so it doesn't appear on top of the bar
-        ).encode(
-            text='Player_name:N'
-        )
-        st.altair_chart(bars + text, theme=None, width='stretch')
-        
-def gpch_player_stats(filters):
-        gpch_result_all = execute_query(
-        f'''
-               select 
-                    player_id
-                    , CAST(report_date AS CHAR) AS Report_date
-                    , name as "Player_name"
-                    , Age_PL as "Epoka"
-                    , GPCH_DATE_OF_DAY as "GPCH_day"
-                    , "RANK"
-                    , battlesWon "Wygrane_bitwy"
-                    , negotiationsWon  "Wygrane_negocjacje"
-                    , score 
-                    , "Forecast"
-                from V_GPCH where GPCH_DATE_OF_DAY = 0
-                AND world = '{get_world_id()}'
-                AND guild_id = {get_guild_id()}
-                UNION ALL
-                select 
-                    player_id
-                    , CAST(a.report_date AS CHAR) AS Report_date
-                    , name as "Player_name"
-                    , Age_PL as "Epoka"
-                    , GPCH_DATE_OF_DAY as "GPCH_day"
-                    , "RANK"
-                    , battlesWon "Wygrane_bitwy"
-                    , negotiationsWon  "Wygrane_negocjacje"
-                    , score 
-                    , "Forecast"
-                from V_GPCH a
-                INNER JOIN 
-                    (SELECT MIN(report_date) AS report_date FROM V_GPCH WHERE world = '{get_world_id()}' AND guild_id = {get_guild_id()}) c
-                ON a.report_date = c.report_date
-                WHERE 
-                a.world = '{get_world_id()}'
-                AND a.guild_id = {get_guild_id()}
-            ''',
-                    return_type="df",
-                )
-        gpch_result_all = gpch_result_all[gpch_result_all['player_id'].isin(filters)]
-        
-        base=alt.Chart(gpch_result_all).mark_bar(strokeWidth=1).encode(
-            x=alt.X('Report_date:N', axis = alt.Axis(title = 'Data zakończenia GPCh', labelAngle=5)),
-            y=alt.Y('score:Q', axis = alt.Axis(title = 'Wynik walk i nego', labelAngle=5)),
+        .properties(title="Statystyka wszystkich edycji WG gracza/y", width=alt.Step(10))
+        .interactive()
+    )
+    labels = base.mark_text(
+        align="center", baseline="top", color="black", dy=-30
+    ).encode(text="Player_name:N")
+
+    st.altair_chart(base + labels, theme=None, width="stretch")
+
+
+@st.fragment
+def section_gpch(filters: list) -> None:
+    if not filters:
+        return
+
+    df_all = get_gpch_stats()
+    df = df_all[df_all["player_id"].isin(filters)]
+
+    if df.empty:
+        st.warning("Brak danych GPCh dla wybranych graczy.")
+        return
+
+    base = (
+        alt.Chart(df)
+        .mark_bar(strokeWidth=1)
+        .encode(
+            x=alt.X("Report_date:N", axis=alt.Axis(title="Data zakonczenia GPCh", labelAngle=5)),
+            y=alt.Y("score:Q", axis=alt.Axis(title="Wynik walk i nego", labelAngle=5)),
             xOffset="Player_name:N",
-            tooltip=["Player_name:N", "Report_date", "Epoka", "Wygrane_bitwy:Q", "Wygrane_negocjacje:Q"]
-            # column=alt.Column('report_date:T', title="", spacing =1), #spacing =0 removes space between columns, column for can and st 
-        ).properties( height = 300, title='Statystyka wszystkich edycji GPCh gracza/y'
-            , width=alt.Step(3)).interactive()
-        
-        bars = base.mark_bar().encode(
-            color='Player_name:N',
+            color="Player_name:N",
+            tooltip=["Player_name:N", "Report_date", "Epoka", "Wygrane_bitwy:Q", "Wygrane_negocjacje:Q"],
         )
-        text = base.mark_text(
-            align='center',
-            baseline='top'
-            , color="black"
-            , dy=-30  # Nudges text to right so it doesn't appear on top of the bar
-        ).encode(
-            text='Player_name:N'
-        )
-        st.altair_chart(bars + text, theme=None, width='stretch')
-        
-def nk_player_stats(filters):
-        nk_result_all = execute_query(
-        f'''SELECT 
-                DISTINCT *
-            FROM 
-            (
-                select 
-                    player_id
-                    , CAST(report_date AS CHAR) AS Report_date
-                    , name as "Player_name"
-                    , Age_PL as "Epoka"
-                    , NK_DATE_OF_DAY as "NK_day"
-                    , progressContribution AS "Postep"
-                    , actionPoints AS "Działania"
-                from V_NK where NK_DATE_OF_DAY = 0
-                AND world = '{get_world_id()}'
-                AND guild_id = {get_guild_id()}
-                UNION ALL
-                select 
-                    player_id
-                    , CAST(a.report_date AS CHAR) AS Report_date
-                    , name as "Player_name"
-                    , Age_PL as "Epoka"
-                    , NK_DATE_OF_DAY as "NK_day"
-                    , progressContribution AS "Postep"
-                    , actionPoints AS "Działania"
-                from V_NK a
-                INNER JOIN 
-                    (SELECT MIN(report_date) AS report_date FROM V_NK WHERE world = '{get_world_id()}' AND guild_id = {get_guild_id()}) c
-                ON a.report_date = c.report_date
-                WHERE 
-                a.world = '{get_world_id()}'
-                AND a.guild_id = {get_guild_id()}
-            ) as x
-            ''',
-                    return_type="df",
-                )
-        nk_result_all = nk_result_all[nk_result_all['player_id'].isin(filters)]
+        .properties(title="Statystyka wszystkich edycji GPCh gracza/y", height=300, width=alt.Step(3))
+        .interactive()
+    )
+    labels = base.mark_text(
+        align="center", baseline="top", color="black", dy=-30
+    ).encode(text="Player_name:N")
 
-        
-        base=alt.Chart(nk_result_all).mark_bar(strokeWidth=1).encode(
-            x=alt.X('Report_date:N', axis = alt.Axis(title = 'Data zakończenia Najazdów Kwantowych', labelAngle=5)),
-            y=alt.Y('Postep:Q', axis = alt.Axis(title = 'Postęp', labelAngle=5)),
+    st.altair_chart(base + labels, theme=None, width="stretch")
+
+
+@st.fragment
+def section_nk(filters: list) -> None:
+    if not filters:
+        return
+
+    df_all = get_nk_stats()
+    df = df_all[df_all["player_id"].isin(filters)]
+
+    if df.empty:
+        st.warning("Brak danych NK dla wybranych graczy.")
+        return
+
+    base = (
+        alt.Chart(df)
+        .mark_bar(strokeWidth=1)
+        .encode(
+            x=alt.X("Report_date:N", axis=alt.Axis(title="Data zakonczenia Najazdow Kwantowych", labelAngle=5)),
+            y=alt.Y("Postep:Q", axis=alt.Axis(title="Postep", labelAngle=5)),
             xOffset="Player_name:N",
-            tooltip=["Player_name:N", "Report_date", "Epoka", "Postep:Q", "Działania:Q"]
-            # column=alt.Column('report_date:T', title="", spacing =1), #spacing =0 removes space between columns, column for can and st 
-        ).properties( height = 300, title='Statystyka wszystkich edycji Najazdów Kwantowych gracza/y'
-            , width=alt.Step(3)).interactive()
-        
-        bars = base.mark_bar().encode(
-            color='Player_name:N',
+            color="Player_name:N",
+            tooltip=["Player_name:N", "Report_date", "Epoka", "Postep:Q", "Dzialania:Q"],
         )
-        text = base.mark_text(
-            align='center',
-            baseline='top'
-            , color="black"
-            , dy=-30  # Nudges text to right so it doesn't appear on top of the bar
-        ).encode(
-            text='Player_name:N'
+        .properties(title="Statystyka wszystkich edycji Najazdow Kwantowych gracza/y", height=300, width=alt.Step(3))
+        .interactive()
+    )
+    labels = base.mark_text(
+        align="center", baseline="top", color="black", dy=-30
+    ).encode(text="Player_name:N")
+
+    st.altair_chart(base + labels, theme=None, width="stretch")
+
+
+@st.fragment
+def section_guild_history(filters: list) -> None:
+    df_all = get_guild_player_history()
+
+    with st.expander("Dodaj notatke graczowi", expanded=True):
+        col1, col2, _ = st.columns([5, 10, 5])
+        nickname = col1.selectbox(
+            "Wyznacz gracza",
+            index=None,
+            options=df_all["Player_name"].sort_values().unique(),
+            label_visibility="hidden",
         )
-        st.altair_chart(bars + text, theme=None, width='stretch')
-   
+        if nickname:
+            pid = df_all.loc[df_all["Player_name"] == nickname, "player_id"].values[0]
+            notka = col2.text_input(
+                "Wpisz krotka notke",
+                placeholder="Wpisz krotka notke",
+                label_visibility="hidden",
+            )
+            disabled = not notka
+            st.button(
+                "Zapisz",
+                on_click=add_note,
+                args=(pid, notka),
+                disabled=disabled,
+                type="primary",
+            )
 
-        
-def guild_player_history(filters):
-        query = f'''select 
-                a.player_id
-                , a.`rank`
-                , a.name as "Player_name"
-                , a.score
-                , a.won_battles
-                , a.Age_PL as "Epoka"
-                , title
-                , case 
-                    permissions
-                    when  126 then 'Zarządzanie GPCh'
-                    when 127 then 'Zarządzanie Gildią'
-                    end "Uprawnienia"
-                , Join_date
-                , leave_date
-                , valid_from
-                , valid_to
-            from V_GUILD_PLAYERS a
-            # WHERE 
-            #     a.world = '{get_world_id()}'
-            #     AND a.guild_id = {get_guild_id()}
-            ORDER BY
-                Valid_from
-            '''
-        guild_hist_sql = execute_query(query, return_type="df")
- 
-        with st.expander("Dodaj notatkę graczowi", expanded=True):
-            def add_note(player_id, note):
-                st.markdown(f"call p_notes({player_id},'{note}')")
-                execute_query(f"call p_notes({player_id},'{note}')", return_type="df")
-                st.toast("Dane zapisane", icon="✅")
-            # st.markdown(
-            #     """
-            # <style>
-            # button {
-            #     height: 50px;
-            #     padding-top: 16px !important;
-            #     padding-bottom: 16px !important;
-            # }
-            # </style>
-            # """,
-            #     unsafe_allow_html=True,
-            # )                
-            col1, col2, col3 = st.columns([5, 10, 5])
-            nickname = col1.selectbox( label= "Wyznacz gracza", index=None,  options=guild_hist_sql['Player_name'].sort_values().unique(), label_visibility='hidden')
-            if nickname != None:
-                pid = guild_hist_sql.loc[guild_hist_sql['Player_name'] == nickname, 'player_id'].values[0]
-                notka = col2.text_input(label="Wpisz któtką notkę", placeholder="Wpisz któtką notkę",label_visibility='hidden')
-                if (notka == None or notka == ""):
-                    przycisk = st.button(label="Zapisz", on_click=add_note, args=(pid, notka), disabled=True)
-                else:
-                    przycisk = st.button(label="Zapisz", on_click=add_note, args=(pid, notka), disabled=False)
-                    guild_hist_sql = None
-                    st.cache_data.clear()
-                    guild_hist_sql = execute_query(query, return_type="df")
+    if filters:
+        st.dataframe(
+            df_all[df_all["player_id"].isin(filters)],
+            width="stretch",
+            hide_index=True,
+        )
+    else:
+        st.info("Wybierz gracza w filtrze powyzej aby zobaczyc jego historie.")
 
-           
-        st.dataframe(guild_hist_sql[guild_hist_sql['player_id'].isin(filters)], width='stretch', hide_index=True)
-     
-def list_notes_for_users(filters):
-        query = f'''
-            SELECT 
-                * 
-            FROM
-            ( 
-                SELECT 
-                    a.player_id
-                    , a.name as "Player_name"
-                    , notka
-                    , ROW_NUMBER() OVER (PARTITION BY a.player_id ORDER BY VALID_TO DESC ) RN
-                FROM V_GUILD_PLAYERS a
-                WHERE 
-                    notka is not null
-                    # AND a.world = '{get_world_id()}'
-                    # AND a.guild_id = {get_guild_id()}
-            ) x
-            WHERE RN = 1
-            '''
-        guild_hist_sql_tmp = execute_query(query, return_type="df")
-        guild_hist_sql = guild_hist_sql_tmp[guild_hist_sql_tmp['player_id'].isin(filters)]
-        
-        for names in range(len(guild_hist_sql)):
-            player_name = guild_hist_sql['Player_name'].iloc[names]
-            notka = guild_hist_sql['notka'].iloc[names]
-            
-            st.warning(f'Gracz **{player_name}** ma zapisaną notatkę: \n\n{notka}\n', icon='⚠️')
-         
-def player_nick_changes(filters):
-        changed_nick_sql = execute_query( f'''
-                        SELECT 
-                          GP.player_id              
-                          , GP.name "OLD_NAME" 
-                          , VAP.name "CURRENT_NAME"
-                        FROM 
-                          (SELECT player_id, name, ROW_NUMBER() over (partition by player_id order by valid_to desc) rn FROM V_GUILD_PLAYERS) GP
-                        Inner JOIN
-                          V_ALL_PLAYERS VAP
-                          ON GP.player_id =  VAP.PLAYERID 
-                          and rn = 1
-                        WHERE 
-                            VAP.VALID_TO  = '3000-12-31'
-                            AND VAP.WORLD = '{get_world_id()}' 
-                            and GP.name <> VAP.name
-            ''', return_type="df")
-        changed_nick = changed_nick_sql[changed_nick_sql['player_id'].isin(filters)]
 
-        
-        for names in range(len(changed_nick)):
-            old_name = changed_nick['OLD_NAME'].iloc[names]
-            current_name = changed_nick['CURRENT_NAME'].iloc[names]
-            
-            st.info(f'Gracz **{old_name}** zmienił nick na **{current_name}**', icon="ℹ️")
-   
-def run_reports():
-    st.subheader(" ##  Postępy Graczy  ## ", anchor='PostępyGraczy')
-    
-    filters = filter_Setup()
+# ---------------------------------------------------------------------------
+# GLOWNA FUNKCJA
+# ---------------------------------------------------------------------------
 
-    player_nick_changes(filters)
+def run_reports() -> None:
+    st.subheader("Postepy Graczy", anchor="PostepyGraczy")
 
-    list_notes_for_users(filters)
-    
-    st.subheader('Historia aktywności z ostatnich 30 dni  \n  \n',anchor='activity',  divider='rainbow')
-    st.text("\n\n\n")
-    tabs_player_activity(filters)
-    
-    st.subheader('Wyprawy Gildyjne  \n  \n',anchor='wg',  divider='rainbow')
-    st.text("\n\n\n")
-    wg_player_stats(filters)
-    st.subheader('Gildyjne Pola Chwały  \n  \n',anchor='gpch',  divider='rainbow')
-    st.text("\n\n\n")
-    gpch_player_stats(filters)
-    st.subheader('Najazdy Kwantowe  \n  \n',anchor='nk',  divider='rainbow')
-    st.text("\n\n\n")
-    nk_player_stats(filters)
-    # st.subheader('Statystyki w Gildii  \n  \n',anchor='stats',  divider='rainbow')
-    # st.text("\n\n\n")
-    # guild_player_stats(filters)
-    st.subheader('Historia zmian w Gildii  \n  \n',anchor='history',  divider='rainbow')
-    st.text("\n\n\n")
-    guild_player_history(filters)
-    # wg_player_stats()
-    
-    
-     
-if __name__ == '__main__': 
+    # Filtr — multiselect, nie trafia do bazy przy kazdym rerenderze
+    filters = filter_setup()
 
+    # Kazdna sekcja to osobny @st.fragment —
+    # zmiana filtra rerenderuje cala strone ale kazda sekcja
+    # pobiera dane z cache, wiec tylko renderowanie jest kosztem
+    section_nick_changes(filters)
+    section_notes(filters)
+
+    st.subheader("Historia aktywnosci z ostatnich 30 dni", anchor="activity", divider="rainbow")
+    section_activity(filters)
+
+    st.subheader("Wyprawy Gildyjne", anchor="wg", divider="rainbow")
+    section_wg(filters)
+
+    st.subheader("Gildyjne Pola Chwaly", anchor="gpch", divider="rainbow")
+    section_gpch(filters)
+
+    st.subheader("Najazdy Kwantowe", anchor="nk", divider="rainbow")
+    section_nk(filters)
+
+    st.subheader("Historia zmian w Gildii", anchor="history", divider="rainbow")
+    section_guild_history(filters)
+
+
+# ---------------------------------------------------------------------------
+# ENTRY POINT
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
     page_header()
-    if 'authentication_status' not in st.session_state:
+
+    if "authentication_status" not in st.session_state:
         st.session_state.authentication_status = None
-    authenticator, users, username  = login()
-    if username:
-        if st.session_state['authentication_status']:
-            if check_user_role_permissions(username, 'GUILD_PLAYER_STATS') == True:
-                run_reports()   
-            else:
-                st.warning("Nie masz dostępu do tej zawartości.")    
- 
+
+    authenticator, users, username = login()
+
+    if username and st.session_state.get("authentication_status"):
+        if check_user_role_permissions(username, "GUILD_PLAYER_STATS"):
+            run_reports()
+        else:
+            st.warning("Nie masz dostepu do tej zawartosci.")

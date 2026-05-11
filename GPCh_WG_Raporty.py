@@ -28,11 +28,16 @@ path = os.path.dirname(__file__)
 def get_text(type):
     res = execute_query(f"SELECT msg_text FROM t_tips WHERE msg_type = '{type}' AND valid_to ='3000-12-31'", return_type="df")
     return res.iloc[0]['msg_text']
+
+
+def check_param_value(param_name):
+    res = execute_query(f"SELECT msg_text FROM t_params WHERE msg_type = '{param_name}' ", return_type="df")
+    return res.iloc[0]['msg_text']
     
 def change_text(type, msg):
     execute_query(f"call p_change_tips('{type}','{msg}')", return_type="df")
 
-@st.fragment
+@st.cache_data(ttl=300)
 def list_dates_wg(wg_cond):
     return f'''select distinct 
 CAST(report_date as CHAR(10))|| CASE 
@@ -82,7 +87,7 @@ def list_dates(wg_checkbox, gpc_checkbox):
         qry = f'{list_dates_wg(wg_cond)} \n UNION \n {list_dates_gpc(gpc_cond)}\n order by 1'
     return execute_query(qry, return_type="list")
 
-@st.fragment
+@st.cache_data(ttl=300)
 def list_wg_result_all(date_filter):
     wg_result_all = execute_query(
         f'''select 
@@ -101,7 +106,7 @@ from V_WG where report_date = '{date_filter}'
     )
     return wg_result_all
 
-@st.fragment
+@st.cache_data(ttl=300)
 def list_wg_result_catch(date_filter):
     wg_result_catch = execute_query(
         f'''select 
@@ -163,7 +168,7 @@ LEFT JOIN
     )
     return gpch_result_all
 
-@st.fragment
+@st.cache_data(ttl=300)
 def list_gpch_result_catch(date_filter):
     gpch_result_catch = execute_query(
         f'''select 
@@ -185,7 +190,7 @@ AND score < forecast
     )
     return gpch_result_catch
 
-@st.fragment
+@st.cache_data(ttl=300)
 def list_nk_result_all(date_filter):
     nk_result_all = execute_query(
         f'''select 
@@ -203,7 +208,7 @@ from V_NK where report_date = '{date_filter[0:10]}'  and world = '{get_world_id(
     )
     return nk_result_all
 
-@st.fragment
+@st.cache_data(ttl=300)
 def list_nk_result_catch(date_filter):
     nk_result_catch = execute_query(
         f'''select 
@@ -223,7 +228,7 @@ AND actionPoints < forecast
     return nk_result_catch
 
 
-@st.fragment
+@st.cache_data(ttl=300)
 def list_guild_stats(date_filter):
     guild_stats_sql = execute_query(
         f'''
@@ -264,7 +269,7 @@ ORDER BY "RANK"
     )
     return guild_stats_sql
 
-@st.fragment
+@st.cache_data(ttl=300)
 def list_change_nick_name():
     return execute_query(f'''SELECT 
                         old_name AS "Poprzedni nick"
@@ -424,6 +429,7 @@ def run_reports():
         st.text("\n\n\n")
         guild_stats(date_filter)
  
+@st.fragment 
 def wg_reports(date_filter):
     st.subheader('Wyprawy Gildyjne  \n  \n',anchor='wg',  divider='rainbow')
     try:
@@ -483,6 +489,7 @@ def wg_reports(date_filter):
     except IndexError as e:
         st.error("Brak danych do wyświetlenia. Upewnij się, że Dane za WG są załadowane za wybrany dzień.", icon="🚨")
 
+@st.fragment
 def gpch_reports(date_filter):
     st.subheader('Pola Chwały  \n  \n', anchor='gpch', divider='rainbow')
     try:
@@ -538,6 +545,7 @@ def gpch_reports(date_filter):
         st.error("Brak danych do wyświetlenia. Upewnij się, że Dane za GPC są załadowane za wybrany dzień.", icon="🚨")
 
 
+@st.fragment
 def nk_reports(date_filter):
     st.subheader('Najazdy Kwantowe  \n  \n', anchor='nk', divider='rainbow')
     try:
@@ -592,14 +600,14 @@ def nk_reports(date_filter):
         # st.stop()
 
 
-
+@st.fragment
 def guild_stats(date_filter):
     st.subheader('Statystyki Gildii', anchor='guild', divider='rainbow')
     guild_stats_sql = list_guild_stats(date_filter)
     st.dataframe(guild_stats_sql, width='stretch', hide_index=True,             column_config={
                             "avatar":  st.column_config.ImageColumn(label="Avatar", width="small")} )
 
-
+@st.fragment
 def new_approach(date_filter):
     st.subheader('Rozliczenia GPC', anchor='GPC stats', divider='rainbow')
 
@@ -673,68 +681,80 @@ def new_approach(date_filter):
     #               .style.apply(cooling_highlight, axis=1))
 
 
-
+@st.fragment
 def check_nick_name_change():
     qry = list_change_nick_name()
     if not qry.empty:
         st.warning('Poniżej gracze którzy zmienili nick', icon="⚠️")
         st.dataframe(qry, hide_index=True, width='stretch')
 
-
+@st.cache_data(ttl=300)
+def get_param_value(param_name: str) -> object:
+    return execute_query(
+        """SELECT
+                JSON_UNQUOTE(json_extract(`Params`, '$.value')) AS Param_Value
+            FROM t_params
+            WHERE world = :world AND ClanId = :guildid AND json_extract(`Params`, '$.key') = :param_name
+        """,
+        params={"world": get_world_id(), "guildid": get_guild_id(), "param_name": param_name},
+        return_type="df",
+    )
 
 
 @st.fragment
 def lottery_top_gpch_players(date_filter):
-    gpch_result_all = list_gpch_result_all(date_filter)
     
-    check_winners = list_winners(date_filter)
-    if not (gpch_result_all.iloc[0]['GPCH_day'] <12 and gpch_result_all.iloc[0]['GPCH_day']>0):
-        st.subheader('Losowanie graczy  \n  \n', anchor='gpch', divider='rainbow')
-        if check_winners.empty: 
+    if get_param_value('GPC Lottery module')["Param_Value"].iloc[0] == True:
+        gpch_result_all = list_gpch_result_all(date_filter)
         
-            if 'clicked' not in st.session_state:
-                st.session_state.clicked = False
-            def click_button():
-                st.session_state.clicked = True
+        check_winners = list_winners(date_filter)
+        if not (gpch_result_all.iloc[0]['GPCH_day'] <12 and gpch_result_all.iloc[0]['GPCH_day']>0):
+            st.subheader('Losowanie graczy  \n  \n', anchor='gpch', divider='rainbow')
+            if check_winners.empty: 
+            
+                if 'clicked' not in st.session_state:
+                    st.session_state.clicked = False
+                def click_button():
+                    st.session_state.clicked = True
 
-            st.markdown("""
-                <style>
-                    .st-dd, .stTextInput > div > div > input, .stButton > button, .stSlider > div {
-                        vertical-align: middle !important;
-                        font-family: 'Inter';
-                        font-size: 40px;
-                        font-weight: 500;
-                    }
-                    .stTextInput > div > div > input {
-                        margin-top: 5px !important;
-                    }
-                </style>
-                """, unsafe_allow_html=True)
+                st.markdown("""
+                    <style>
+                        .st-dd, .stTextInput > div > div > input, .stButton > button, .stSlider > div {
+                            vertical-align: middle !important;
+                            font-family: 'Inter';
+                            font-size: 40px;
+                            font-weight: 500;
+                        }
+                        .stTextInput > div > div > input {
+                            margin-top: 5px !important;
+                        }
+                    </style>
+                    """, unsafe_allow_html=True)
 
-            col1, col2, col3, col4 = st.columns([40, 40, 20, 40])
-
-            with st.expander(label="Ustawienia losowania"):
                 col1, col2, col3, col4 = st.columns([40, 40, 20, 40])
-                num_of_lottery_players = col1.number_input(label="Wpisz Top osób biorących udział w losowaniu", step=1, value=30,  min_value=1, max_value=len(gpch_result_all))
-                num_of_winners = col2.number_input(label="Wpisz ile osób może wygrać w losowaniu", step=1,  min_value=1, value=5, max_value=num_of_lottery_players)
-            gpch_result_selected = gpch_result_all[gpch_result_all["Wygrane_bitwy"].isin( gpch_result_all["Wygrane_bitwy"].nlargest(n=num_of_lottery_players))]
-            st.button(label="Wylosuj zwyciężców", type="primary", on_click=click_button())
-            if st.session_state.clicked:
-                list_gpc_lottery_exc = list_gpc_lottery_exceptions()
-                gpch_result_selected = gpch_result_selected[~gpch_result_selected["player_id"].isin(list_gpc_lottery_exc["player_id"])] 
-                winners= gpch_result_selected.sample(n=num_of_winners)
-                for ind in winners.index:
-                    pl_id = winners["player_id"][ind]
-                    execute_query(f"call p_gpc_lottery('{get_world_id()}', {get_guild_id()}, '{date_filter[0:10]}', {pl_id})", return_type="df")
-                st.cache_data.clear()
-        else:
-            loterry_msg = '''Gratulujemy poniższym graczom za wspólną zabawę:\n\n'''   
-            for ind in check_winners.index:
-                    loterry_msg += f'''\t{check_winners["name"][ind]}\n'''
 
-            loterry_msg += f'''\n\nDziękujemy, że jesteście z Nami i wspieracie {get_guild_name()}.'''
+                with st.expander(label="Ustawienia losowania"):
+                    col1, col2, col3, col4 = st.columns([40, 40, 20, 40])
+                    num_of_lottery_players = col1.number_input(label="Wpisz Top osób biorących udział w losowaniu", step=1, value=30,  min_value=1, max_value=len(gpch_result_all))
+                    num_of_winners = col2.number_input(label="Wpisz ile osób może wygrać w losowaniu", step=1,  min_value=1, value=5, max_value=num_of_lottery_players)
+                gpch_result_selected = gpch_result_all[gpch_result_all["Wygrane_bitwy"].isin( gpch_result_all["Wygrane_bitwy"].nlargest(n=num_of_lottery_players))]
+                st.button(label="Wylosuj zwyciężców", type="primary", on_click=click_button)
+                if st.session_state.clicked:
+                    list_gpc_lottery_exc = list_gpc_lottery_exceptions()
+                    gpch_result_selected = gpch_result_selected[~gpch_result_selected["player_id"].isin(list_gpc_lottery_exc["player_id"])] 
+                    winners= gpch_result_selected.sample(n=num_of_winners)
+                    for ind in winners.index:
+                        pl_id = winners["player_id"][ind]
+                        execute_query(f"call p_gpc_lottery('{get_world_id()}', {get_guild_id()}, '{date_filter[0:10]}', {pl_id})", return_type="df")
+                    st.cache_data.clear()
+            else:
+                loterry_msg = '''Gratulujemy poniższym graczom za wspólną zabawę:\n\n'''   
+                for ind in check_winners.index:
+                        loterry_msg += f'''\t{check_winners["name"][ind]}\n'''
 
-            st.code(loterry_msg)
+                loterry_msg += f'''\n\nDziękujemy, że jesteście z Nami i wspieracie {get_guild_name()}.'''
+
+                st.code(loterry_msg)
 
 
 if __name__ == '__main__':    

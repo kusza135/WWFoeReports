@@ -69,36 +69,64 @@ def page_header():
     
     
 
-def execute_query(query: str, return_type: str = "df"):
-    # st.write(query)
-    con= st.connection('my_sql', type='sql')
-    if return_type == "df":
-        return con.query(query)
-    elif return_type == "list":
-        return con.query(query).values.tolist()
+def execute_query(
+    query: str,
+    return_type: str = "df",
+    params: dict | None = None,
+    ttl: int = 0,
+):
+    """
+    Wykonuje zapytanie SELECT do bazy danych.
 
+    Parametry
+    ---------
+    query       : zapytanie SQL; użyj :nazwa jako placeholder,
+                  np. WHERE world = :world AND id = :id
+    return_type : "df"   → DataFrame
+                  "list" → lista krotek
+    params      : słownik wartości do podstawienia,
+                  np. {"world": get_world_id(), "id": 42}
+    ttl         : czas cache'owania w sekundach (0 = bez cache)
+
+    Przykład
+    --------
+    execute_query(
+        "SELECT * FROM V_users WHERE world = :world AND guildid = :guildid",
+        params={"world": get_world_id(), "guildid": get_guild_id()},
+    )
+    """
+    con = st.connection("my_sql", type="sql")
+    result = con.query(query, params=params or {}, ttl=ttl)
+    if return_type == "df":
+        return result
+    elif return_type == "list":
+        return result.values.tolist()
+    raise ValueError(f"Nieznany return_type: '{return_type}'. Użyj 'df' lub 'list'.")
 
 
 def create_engine():
-    con = st.connection('my_sql', type='sql')
-    conx = con.engine
-    return conx
-    
-def runsql(dbconnector, query):
+    con = st.connection("my_sql", type="sql")
+    return con.engine
+
+
+def runsql(dbconnector, query: str) -> None:
+    """Wykonuje zapytanie mutujące (INSERT/UPDATE/DELETE/CALL) z commitem."""
     try:
         with dbconnector.connect() as con:
-            rs = con.execute(text(query) )
+            con.execute(text(query))
+            con.commit()
     except Exception as e:
-        st.write(query)
-        raise e.with_traceback
-    
-def convert_string_to_bool(str_value):
-    test_list = ["True", "False", "TRUE",
-             "FALSE", "true", "false"]
-    try:
-        value = [str_value.lower().capitalize() 
-       == "True" for str_value in test_list]
+        st.error(f"Błąd SQL: {e}")
+        raise
 
-    except (SyntaxError, ValueError):
-        return None
-    return bool(value)
+
+def convert_string_to_bool(str_value) -> bool | None:
+    """Konwertuje string 'true'/'false' (dowolna wielkość liter) na bool."""
+    if isinstance(str_value, bool):
+        return str_value
+    if isinstance(str_value, str):
+        if str_value.lower() == "true":
+            return True
+        if str_value.lower() == "false":
+            return False
+    return None

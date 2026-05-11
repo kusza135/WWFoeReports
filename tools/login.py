@@ -102,16 +102,21 @@ def login():
     UserNames = [user[2] for user in all_users_db]
     passwords = [user[3] for user in all_users_db]
 
-    credentials = {"usernames":{}}
+    credentials = {"usernames": {}}
 
-    
-    for name,uname,pwd in zip(UserNames,users,passwords):
+    for name, uname, pwd in zip(UserNames, users, passwords):
         user_dict = {"name": name, "password": pwd}
         credentials["usernames"].update({uname: user_dict})
 
-    authenticator = stauth.Authenticate(credentials=credentials, cookie_key="foeWW", cookie_name="WzgFoeWWtheKing", cookie_expiry_days=30, preauthorized=['adamus01@gmail.com'])
+    authenticator = stauth.Authenticate(
+        credentials=credentials,
+        cookie_name="WzgFoeWWtheKing",
+        cookie_key="foeWW",
+        cookie_expiry_days=30
+        # ← usunięto preauthorized — nie istnieje w 0.4.x
+    )
 
-    authenticator.login(location='main')
+    authenticator.login()   # ← usunięto location='main', domyślnie tak działa
 
     if st.session_state['authentication_status'] == False:
         st.error("Nieprawidłowy Login/hasło")
@@ -122,11 +127,11 @@ def login():
         if 'role' not in st.session_state:
             st.session_state['role'] = get_user_role_from_db(st.session_state['username'])
         display_logged_user(st.session_state['name'])
-        # change_pwd(authenticator)
-        if authenticator.logout(button_name='Logout',location='sidebar'):
+        if authenticator.logout(button_name='Logout', location='sidebar'):
             st.cache_data.clear()
             st.cache_resource.clear()
             st.rerun()
+
     return authenticator, users, st.session_state['username']
 
 

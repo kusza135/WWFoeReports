@@ -161,6 +161,8 @@ def load_data_intoDB(db_conn, dfName, DfData, vdate = date.today()):
                 conn.close()
             
     elif  dfName == 'gpch':
+            if 'negotiationsWon' not in DfData.columns:
+                DfData['negotiationsWon'] = None
             input_data = DfData.loc[:, ['_id'
                                         , 'nk'
                                         , 'battlesWon'

@@ -1,3 +1,4 @@
+import hashlib
 import streamlit as st
 import streamlit_authenticator as stauth
 from  tools.streamlit_tools import execute_query, get_world_id, get_guild_id, create_engine, time
@@ -78,9 +79,10 @@ def reset_password(authenticator):
     try:
         x = authenticator.reset_password(st.session_state["username"], location='main')
         if x == True:
-            new_password = authenticator.credentials['usernames'][st.session_state["username"]]['password']
+            creds = authenticator.authentication_controller.authentication_model.credentials
+            new_password = creds['usernames'][st.session_state["username"]]['password']
             return new_password, x
-        else :
+        else:
             return None, False
     except Exception as e:
         st.error(e)
@@ -108,15 +110,29 @@ def login():
         user_dict = {"name": name, "password": pwd}
         credentials["usernames"].update({uname: user_dict})
 
-    authenticator = stauth.Authenticate(
-        credentials=credentials,
-        cookie_name="WzgFoeWWtheKing",
-        cookie_key="foeWW",
-        cookie_expiry_days=30
-        # ← usunięto preauthorized — nie istnieje w 0.4.x
-    )
+    # Cachujemy obiekt Authenticate w session_state, żeby CookieManager nie był
+    # tworzony na nowo przy każdym rerunie Streamlit (powodowało "Missing Submit Button").
+    # Wykrywamy zmiany w DB (nowy użytkownik, zmiana hasła) przez hash credentials — jeśli
+    # się zmieniły, przebudowujemy authenticator (auto_hash musi poprawnie zhashować hasła).
+    cred_hash = hashlib.md5(str(sorted(
+        [(k, v.get('password', ''), v.get('name', ''))
+         for k, v in credentials['usernames'].items()]
+    )).encode()).hexdigest()
 
-    authenticator.login()   # ← usunięto location='main', domyślnie tak działa
+    if ('authenticator' not in st.session_state
+            or st.session_state.get('_cred_hash') != cred_hash):
+        st.session_state['authenticator'] = stauth.Authenticate(
+            credentials=credentials,
+            cookie_name="WzgFoeWWtheKing",
+            cookie_key="foeWW",
+            cookie_expiry_days=30,
+            login_sleep_time=0,  # st.context.cookies jest synchroniczne — sleep zbędny
+        )
+        st.session_state['_cred_hash'] = cred_hash
+
+    authenticator = st.session_state['authenticator']
+
+    authenticator.login()
 
     if st.session_state['authentication_status'] == False:
         st.error("Nieprawidłowy Login/hasło")
@@ -127,7 +143,10 @@ def login():
         if 'role' not in st.session_state:
             st.session_state['role'] = get_user_role_from_db(st.session_state['username'])
         display_logged_user(st.session_state['name'])
-        if authenticator.logout(button_name='Logout', location='sidebar'):
+        # logout() zwraca None (nie bool) — sprawdzamy zmianę stanu sesji
+        was_authenticated = bool(st.session_state.get('authentication_status'))
+        authenticator.logout(button_name='Logout', location='sidebar')
+        if was_authenticated and not st.session_state.get('authentication_status'):
             st.cache_data.clear()
             st.cache_resource.clear()
             st.rerun()

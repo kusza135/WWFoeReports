@@ -226,7 +226,10 @@ def role_selectbox(label: str, roles, key: str | None = None) -> tuple:
 
 def clear_roles_cache() -> None:
     """Czyści cache po mutacjach na rolach/uprawnieniach."""
-    clear_roles_cache()
+    get_roles.clear()
+    get_modules.clear()
+    get_permissions.clear()
+    get_user_permissions.clear()
 
 
 def exec_sp(sp_name: str, p_roleid, p_role_name, p_is_active) -> None:
@@ -333,13 +336,13 @@ def _account_new_user(authenticator) -> None:
         captcha=False,
         password_hint=False,
     )
-    if result:
-        for uname in authenticator.credentials["usernames"]:
-            tools.login.new_user(
-                uname,
-                authenticator.credentials["usernames"][uname]["name"],
-                authenticator.credentials["usernames"][uname]["password"],
-            )
+    # register_user() zwraca (email, username, full_name) lub (None, None, None)
+    # W 0.4.x Authenticate nie ma atrybutu .credentials — dostęp przez model
+    if result and result[1]:
+        _, uname, name = result
+        creds = authenticator.authentication_controller.authentication_model.credentials
+        pwd_hash = creds['usernames'][uname]['password']
+        tools.login.new_user(uname, name, pwd_hash)
         st.success("Uzytkownik zarejestrowany")
         st.cache_data.clear()
         st.rerun()
@@ -351,11 +354,12 @@ def _account_reset_password(users: list) -> None:
     rep_pwd = st.text_input("Powtorz nowe haslo", type="password")
     if new_pwd:
         if new_pwd == rep_pwd:
-            hashed = stauth.Hasher([new_pwd]).generate()
+            # W 0.4.x Hasher jest klasą statyczną: .hash() zwraca string (nie listę)
+            hashed = stauth.Hasher.hash(new_pwd)
             st.button(
                 "Zresetuj", type="primary",
                 on_click=tools.login.db_change_pwd,
-                args=(selected_user, hashed[0]),
+                args=(selected_user, hashed),
             )
         else:
             st.error("Hasla do siebie nie pasuja!")

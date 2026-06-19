@@ -365,41 +365,33 @@ def _account_reset_password(users: list) -> None:
             st.error("Hasla do siebie nie pasuja!")
 
 
+def _user_selector(user_permissions, col88) -> str:
+    idx = get_index_func(
+        user_permissions.UserName.sort_index().unique().tolist(),
+        user_permissions["name"].iloc[0] if not user_permissions["name"].empty else None,
+    )
+    return col88.selectbox("Wybierz Uzytkownika", options=user_permissions.UserName.sort_index().unique(), index=idx)
+
+
+def _role_assign_button(col88, selected_user, selected_role, role_id_sel, is_active) -> None:
+    if not (selected_user and selected_role and role_id_sel is not None):
+        return
+    if col88.button("Przypisz uprawnienia", on_click=exec_sp,
+                    args=("p_assign_role", role_id_sel, selected_user, is_active), type="primary"):
+        st.success("Zapisano")
+
+
 def _account_assign_role() -> None:
     user_permissions = get_user_permissions()
     roles = get_roles()
     col88, col99 = st.columns(2)
-
-    with col88:
-        idx = get_index_func(
-            user_permissions.UserName.sort_index().unique().tolist(),
-            user_permissions["name"].iloc[0] if not user_permissions["name"].empty else None,
-        )
-        selected_user = st.selectbox(
-            "Wybierz Uzytkownika",
-            options=user_permissions.UserName.sort_index().unique(),
-            index=idx,
-        )
-
+    selected_user = _user_selector(user_permissions, col88)
     with col99:
         _, role_id_sel = role_selectbox("Wybierz role", roles)
         selected_role = roles[roles["roleid"] == role_id_sel].role_name.iloc[0] if role_id_sel is not None else None
-
     is_active = col88.checkbox("Aktywny", value=True)
-
-    if selected_user and selected_role and role_id_sel is not None:
-        if col88.button(
-            "Przypisz uprawnienia",
-            on_click=exec_sp,
-            args=("p_assign_role", role_id_sel, selected_user, is_active),
-            type="primary",
-        ):
-            st.success("Zapisano")
-
-    st.dataframe(
-        user_permissions[user_permissions["is_active"] == True],
-        width="stretch", hide_index=True,
-    )
+    _role_assign_button(col88, selected_user, selected_role, role_id_sel, is_active)
+    st.dataframe(user_permissions[user_permissions["is_active"] == True], width="stretch", hide_index=True)
 
 
 @st.fragment
@@ -485,40 +477,27 @@ def tab_roles(is_admin: bool) -> None:
             _roles_assign_module(roles, modules, permissions)
 
 
+def _player_recruiter_form(col2, guild_users) -> None:
+    selected_player = col2.selectbox("Wybierz nazwe gracza", guild_users.name.sort_values().unique(),
+                                     placeholder="Rozwij lub zacznij wpisywac", index=None)
+    with col2.container(border=True):
+        if selected_player:
+            player_id = guild_users.loc[guild_users["name"] == selected_player, "playerId"].iloc[0]
+            c1, c2, _ = st.columns([15, 10, 40])
+            c1.text_input("Gracz", value=selected_player, disabled=True)
+            is_active = c2.checkbox("Aktywny?", value=True)
+            c2.button("Zapisz", type="primary", on_click=modify_prospect_users, args=(player_id, is_active))
+    col2.dataframe(get_all_recruters(), column_config={"Aktywny": st.column_config.CheckboxColumn(default=True)},
+                   hide_index=True, width="stretch")
+
+
 @st.fragment
 def tab_recruitment(is_admin: bool) -> None:
     if not is_admin:
         st.warning("Brak uprawnien do tej sekcji.")
         return
-
     col1, col2, _ = st.columns([20, 60, 20])
-    with col2:
-        guild_users = get_all_guild_users()
-        selected_player = st.selectbox(
-            "Wybierz nazwe gracza",
-            guild_users.name.sort_values().unique(),
-            placeholder="Rozwij lub zacznij wpisywac",
-            index=None,
-        )
-        with st.container(border=True):
-            if selected_player:
-                player_id = guild_users.loc[guild_users["name"] == selected_player, "playerId"].iloc[0]
-                c1, c2, _ = st.columns([15, 10, 40])
-                c1.text_input("Gracz", value=selected_player, disabled=True)
-                is_active = c2.checkbox("Aktywny?", value=True)
-                c2.button(
-                    "Zapisz",
-                    type="primary",
-                    on_click=modify_prospect_users,
-                    args=(player_id, is_active),
-                )
-
-        st.dataframe(
-            get_all_recruters(),
-            column_config={"Aktywny": st.column_config.CheckboxColumn(default=True)},
-            hide_index=True,
-            width="stretch",
-        )
+    _player_recruiter_form(col2, get_all_guild_users())
 
 
 @st.fragment
@@ -544,48 +523,31 @@ def tab_params(is_admin: bool) -> None:
         change_params(df, result)
 
 
+def _add_lottery_exception_form(col2, lottery_users) -> None:
+    selected = col2.selectbox("Wybierz gracza", key="lottery_selectbox",
+                              options=lottery_users.name.sort_values().unique(),
+                              placeholder="Rozwij lub zacznij wpisywac", index=None)
+    with col2.container(border=True):
+        if selected:
+            pid = lottery_users.loc[lottery_users["name"] == selected, "playerId"].iloc[0]
+            col2.button("Dodaj", key="lottery_add", type="primary", on_click=lottery_exception_add, args=(pid,))
+
+
+def _remove_lottery_exception(col2, exceptions) -> None:
+    result = col2.dataframe(exceptions, hide_index=True, on_select="rerun", selection_mode="single-row", width="stretch")
+    if result.selection["rows"]:
+        pid = exceptions.iloc[result.selection["rows"][0]]["player_id"]
+        col2.button("Usun", key="lottery_delete", type="primary", on_click=lottery_exception_delete, args=(pid,))
+
+
 @st.fragment
 def tab_lottery_exceptions() -> None:
     """Zarzadzanie wyjatkami od loterii GPCh."""
     lottery_users = get_lottery_users()
     exceptions = get_lottery_exceptions()
-
     col1, col2, col3 = st.columns([20, 60, 20])
-    with col2:
-        selected = st.selectbox(
-            "Wybierz gracza",
-            key="lottery_selectbox",
-            options=lottery_users.name.sort_values().unique(),
-            placeholder="Rozwij lub zacznij wpisywac",
-            index=None,
-        )
-        with st.container(border=True):
-            if selected:
-                pid = lottery_users.loc[lottery_users["name"] == selected, "playerId"].iloc[0]
-                st.button(
-                    "Dodaj",
-                    key="lottery_add",
-                    type="primary",
-                    on_click=lottery_exception_add,
-                    args=(pid,),
-                )
-
-        result = st.dataframe(
-            exceptions,
-            hide_index=True,
-            on_select="rerun",
-            selection_mode="single-row",
-            width="stretch",
-        )
-        if result.selection["rows"]:
-            pid = exceptions.iloc[result.selection["rows"][0]]["player_id"]
-            st.button(
-                "Usun",
-                key="lottery_delete",
-                type="primary",
-                on_click=lottery_exception_delete,
-                args=(pid,),
-            )
+    _add_lottery_exception_form(col2, lottery_users)
+    _remove_lottery_exception(col2, exceptions)
 
 
 @st.fragment

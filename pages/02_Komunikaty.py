@@ -101,32 +101,26 @@ def cheat_sheet_view(types) -> None:
     st.divider()
 
 
+def _text_edit_box(selected: str) -> None:
+    with st.container(border=True):
+        st.text_area(
+            label="Wprowadz nowy tekst:",
+            value=get_text(selected),
+            key="edit_text_key",
+            height=350,
+            placeholder="Wpisz nowy tekst",
+            on_change=_on_text_change,
+        )
+        st.markdown(":red[Wcisnij Ctrl+Enter aby zatwierdzic zmiany]")
+
+
 @st.fragment
 def cheat_sheet_edit(types) -> None:
-    """
-    Tryb edycji — przyciski + edytowalny text_area + formularz nowego komunikatu.
-    Fragment izoluje rerenderowanie od trybu podgladu.
-    """
     _render_type_buttons(types, key_prefix="edit")
-
     selected = st.session_state.get("selected_msg_type", DUMP_VALUE)
-
     if selected != DUMP_VALUE:
-        with st.container(border=True):
-            current_text = get_text(selected)
-            st.text_area(
-                label="Wprowadz nowy tekst:",
-                value=current_text,
-                key="edit_text_key",
-                height=350,
-                placeholder="Wpisz nowy tekst",
-                on_change=_on_text_change,
-            )
-            st.markdown(":red[Wcisnij Ctrl+Enter aby zatwierdzic zmiany]")
-
+        _text_edit_box(selected)
     st.divider()
-
-    # Nowy komunikat
     col1, *_ = st.columns([5, 5, 5])
     with col1:
         new_message()
@@ -151,26 +145,19 @@ def new_message() -> None:
 # GLOWNA FUNKCJA
 # ---------------------------------------------------------------------------
 
+def _button_style() -> None:
+    st.markdown("""<style>
+    button { height: auto; padding-top: 10px !important; padding-bottom: 10px !important; }
+    </style>""", unsafe_allow_html=True)
+
+
 def run_reports() -> None:
     st.subheader("Sciaga komunikatow", anchor="komunikaty")
-
-    # Inicjalizacja session_state
     if "selected_msg_type" not in st.session_state:
         st.session_state["selected_msg_type"] = DUMP_VALUE
-
     types = get_message_types()["msg_type"].tolist()
-
     editable = st.toggle("Edytuj")
-
-    st.markdown(
-        """
-        <style>
-        button { height: auto; padding-top: 10px !important; padding-bottom: 10px !important; }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
+    _button_style()
     if editable:
         cheat_sheet_edit(types)
     else:

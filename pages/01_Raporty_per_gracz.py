@@ -258,189 +258,128 @@ def section_notes(filters: list) -> None:
         )
 
 
-@st.fragment
-def section_activity(filters: list) -> None:
-    if not filters:
-        st.info("Wybierz gracza w filtrze powyzej.")
-        return
-
-    df_all = get_player_activity()
-    df = df_all[df_all["playerId"].isin(filters)]
-
-    if df.empty:
-        st.warning("Brak danych aktywnosci dla wybranych graczy.")
-        return
-
-    metric = st.radio(
-        "Wybierz metryki:",
-        options=[
-            "Punty rankingowe", "Liczba bitew",
-            "Roznica punktow rankingowych", "Roznica bitew",
-        ],
-        horizontal=True,
-        index=3,
-    )
-
+def _activity_chart(df, metric: str) -> alt.Chart:
     line = (
         alt.Chart(df)
         .mark_line(point=alt.OverlayMarkDef(filled=True, size=25))
         .encode(
             x=alt.X("Data_danych", title="Data danych"),
             y=alt.Y(metric, title=metric),
-            color=alt.Color(
-                "name:N",
-                legend=alt.Legend(
-                    orient="none", legendX=450, legendY=-47,
-                    direction="horizontal", titleAnchor="middle",
-                ),
-            ),
+            color=alt.Color("name:N", legend=alt.Legend(orient="none", legendX=450, legendY=-47, direction="horizontal", titleAnchor="middle")),
             tooltip=metric,
         )
         .properties(title="Historia gry z ostatnich 30 dni", height=450)
     )
-    ticks = (
-        alt.Chart(df)
-        .mark_tick(color="purple", thickness=2, size=18)
-        .encode(x="Data_danych", y="GPCh")
-        .properties(title="dzien GPCh")
-    )
-    labels = line.mark_text(
-        align="center", baseline="top", color="black", fontSize=13, dy=-30
-    ).encode(text=f"{metric}:Q")
+    ticks = alt.Chart(df).mark_tick(color="purple", thickness=2, size=18).encode(x="Data_danych", y="GPCh").properties(title="dzien GPCh")
+    labels = line.mark_text(align="center", baseline="top", color="black", fontSize=13, dy=-30).encode(text=f"{metric}:Q")
+    return (line + ticks + labels).interactive()
 
-    st.altair_chart((line + ticks + labels).interactive(), width="stretch")
+
+@st.fragment
+def section_activity(filters: list) -> None:
+    if not filters:
+        st.info("Wybierz gracza w filtrze powyzej.")
+        return
+    df_all = get_player_activity()
+    df = df_all[df_all["playerId"].isin(filters)]
+    if df.empty:
+        st.warning("Brak danych aktywnosci dla wybranych graczy.")
+        return
+    metric = st.radio("Wybierz metryki:", options=["Punty rankingowe", "Liczba bitew", "Roznica punktow rankingowych", "Roznica bitew"], horizontal=True, index=3)
+    st.altair_chart(_activity_chart(df, metric), width="stretch")
+
+
+def _wg_chart(df) -> alt.Chart:
+    base = (
+        alt.Chart(df).mark_bar(strokeWidth=1)
+        .encode(x=alt.X("Report_date:N", axis=alt.Axis(title="Data zakonczenia WG", labelAngle=5)),
+                y="Wygrane_bitwy:Q", xOffset="Player_name:N", color="Player_name:N",
+                tooltip=["Player_name:N", "Report_date", "Epoka", "WG_LEVEL", "Wygrane_bitwy", "Proba"])
+        .properties(title="Statystyka wszystkich edycji WG gracza/y", width=alt.Step(10))
+        .interactive()
+    )
+    return base + base.mark_text(align="center", baseline="top", color="black", dy=-30).encode(text="Player_name:N")
 
 
 @st.fragment
 def section_wg(filters: list) -> None:
     if not filters:
         return
-
     df_all = get_wg_stats()
     df = df_all[df_all["player_id"].isin(filters)]
-
     if df.empty:
         st.warning("Brak danych WG dla wybranych graczy.")
         return
+    st.altair_chart(_wg_chart(df), theme=None, width="stretch")
 
+
+def _gpch_chart(df) -> alt.Chart:
     base = (
-        alt.Chart(df)
-        .mark_bar(strokeWidth=1)
-        .encode(
-            x=alt.X("Report_date:N", axis=alt.Axis(title="Data zakonczenia WG", labelAngle=5)),
-            y="Wygrane_bitwy:Q",
-            xOffset="Player_name:N",
-            color="Player_name:N",
-            tooltip=["Player_name:N", "Report_date", "Epoka", "WG_LEVEL", "Wygrane_bitwy", "Proba"],
-        )
-        .properties(title="Statystyka wszystkich edycji WG gracza/y", width=alt.Step(10))
+        alt.Chart(df).mark_bar(strokeWidth=1)
+        .encode(x=alt.X("Report_date:N", axis=alt.Axis(title="Data zakonczenia GPCh", labelAngle=5)),
+                y=alt.Y("score:Q", axis=alt.Axis(title="Wynik walk i nego", labelAngle=5)),
+                xOffset="Player_name:N", color="Player_name:N",
+                tooltip=["Player_name:N", "Report_date", "Epoka", "Wygrane_bitwy:Q", "Wygrane_negocjacje:Q"])
+        .properties(title="Statystyka wszystkich edycji GPCh gracza/y", height=300, width=alt.Step(3))
         .interactive()
     )
-    labels = base.mark_text(
-        align="center", baseline="top", color="black", dy=-30
-    ).encode(text="Player_name:N")
-
-    st.altair_chart(base + labels, theme=None, width="stretch")
+    return base + base.mark_text(align="center", baseline="top", color="black", dy=-30).encode(text="Player_name:N")
 
 
 @st.fragment
 def section_gpch(filters: list) -> None:
     if not filters:
         return
-
     df_all = get_gpch_stats()
     df = df_all[df_all["player_id"].isin(filters)]
-
     if df.empty:
         st.warning("Brak danych GPCh dla wybranych graczy.")
         return
+    st.altair_chart(_gpch_chart(df), theme=None, width="stretch")
 
+
+def _nk_chart(df) -> alt.Chart:
     base = (
-        alt.Chart(df)
-        .mark_bar(strokeWidth=1)
-        .encode(
-            x=alt.X("Report_date:N", axis=alt.Axis(title="Data zakonczenia GPCh", labelAngle=5)),
-            y=alt.Y("score:Q", axis=alt.Axis(title="Wynik walk i nego", labelAngle=5)),
-            xOffset="Player_name:N",
-            color="Player_name:N",
-            tooltip=["Player_name:N", "Report_date", "Epoka", "Wygrane_bitwy:Q", "Wygrane_negocjacje:Q"],
-        )
-        .properties(title="Statystyka wszystkich edycji GPCh gracza/y", height=300, width=alt.Step(3))
+        alt.Chart(df).mark_bar(strokeWidth=1)
+        .encode(x=alt.X("Report_date:N", axis=alt.Axis(title="Data zakonczenia Najazdow Kwantowych", labelAngle=5)),
+                y=alt.Y("Postep:Q", axis=alt.Axis(title="Postep", labelAngle=5)),
+                xOffset="Player_name:N", color="Player_name:N",
+                tooltip=["Player_name:N", "Report_date", "Epoka", "Postep:Q", "Dzialania:Q"])
+        .properties(title="Statystyka wszystkich edycji Najazdow Kwantowych gracza/y", height=300, width=alt.Step(3))
         .interactive()
     )
-    labels = base.mark_text(
-        align="center", baseline="top", color="black", dy=-30
-    ).encode(text="Player_name:N")
-
-    st.altair_chart(base + labels, theme=None, width="stretch")
+    return base + base.mark_text(align="center", baseline="top", color="black", dy=-30).encode(text="Player_name:N")
 
 
 @st.fragment
 def section_nk(filters: list) -> None:
     if not filters:
         return
-
     df_all = get_nk_stats()
     df = df_all[df_all["player_id"].isin(filters)]
-
     if df.empty:
         st.warning("Brak danych NK dla wybranych graczy.")
         return
+    st.altair_chart(_nk_chart(df), theme=None, width="stretch")
 
-    base = (
-        alt.Chart(df)
-        .mark_bar(strokeWidth=1)
-        .encode(
-            x=alt.X("Report_date:N", axis=alt.Axis(title="Data zakonczenia Najazdow Kwantowych", labelAngle=5)),
-            y=alt.Y("Postep:Q", axis=alt.Axis(title="Postep", labelAngle=5)),
-            xOffset="Player_name:N",
-            color="Player_name:N",
-            tooltip=["Player_name:N", "Report_date", "Epoka", "Postep:Q", "Dzialania:Q"],
-        )
-        .properties(title="Statystyka wszystkich edycji Najazdow Kwantowych gracza/y", height=300, width=alt.Step(3))
-        .interactive()
-    )
-    labels = base.mark_text(
-        align="center", baseline="top", color="black", dy=-30
-    ).encode(text="Player_name:N")
 
-    st.altair_chart(base + labels, theme=None, width="stretch")
+def _add_note_form(df_all) -> None:
+    col1, col2, _ = st.columns([5, 10, 5])
+    nickname = col1.selectbox("Wyznacz gracza", index=None, options=df_all["Player_name"].sort_values().unique(), label_visibility="hidden")
+    if not nickname:
+        return
+    pid = df_all.loc[df_all["Player_name"] == nickname, "player_id"].values[0]
+    notka = col2.text_input("Wpisz krotka notke", placeholder="Wpisz krotka notke", label_visibility="hidden")
+    st.button("Zapisz", on_click=add_note, args=(pid, notka), disabled=not notka, type="primary")
 
 
 @st.fragment
 def section_guild_history(filters: list) -> None:
     df_all = get_guild_player_history()
-
     with st.expander("Dodaj notatke graczowi", expanded=True):
-        col1, col2, _ = st.columns([5, 10, 5])
-        nickname = col1.selectbox(
-            "Wyznacz gracza",
-            index=None,
-            options=df_all["Player_name"].sort_values().unique(),
-            label_visibility="hidden",
-        )
-        if nickname:
-            pid = df_all.loc[df_all["Player_name"] == nickname, "player_id"].values[0]
-            notka = col2.text_input(
-                "Wpisz krotka notke",
-                placeholder="Wpisz krotka notke",
-                label_visibility="hidden",
-            )
-            disabled = not notka
-            st.button(
-                "Zapisz",
-                on_click=add_note,
-                args=(pid, notka),
-                disabled=disabled,
-                type="primary",
-            )
-
+        _add_note_form(df_all)
     if filters:
-        st.dataframe(
-            df_all[df_all["player_id"].isin(filters)],
-            width="stretch",
-            hide_index=True,
-        )
+        st.dataframe(df_all[df_all["player_id"].isin(filters)], width="stretch", hide_index=True)
     else:
         st.info("Wybierz gracza w filtrze powyzej aby zobaczyc jego historie.")
 
